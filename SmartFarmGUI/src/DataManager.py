@@ -13,6 +13,13 @@ class DataManager:
     
     self.cursor = self.mydb.cursor()
 
+  def get_defualt_insert_sql(self, table, param_tuple):
+    columns = ', '.join(param_tuple)
+    sql = f"""
+      INSERT INTO {table} ({columns})
+      VALUES 
+    """
+    return sql
 
   def insert_plant_data(self, type):
     today = datetime.now()
@@ -25,8 +32,25 @@ class DataManager:
     self.cursor.execute(sql, (today, type, False))
     self.mydb.commit()
 
+  def insert_log_data(self, log_data_tuple):
+    datas = ', '.join(log_data_tuple)
+    sql = self.get_defualt_insert_sql("log_data", ("plant_id", "plant_age", "message_id", "date", "path"))
+    sql += f" ({datas})"
 
-  def get_defualt_sql(self, table, param_tuple):
+    self.cursor.execute(sql)
+    self.mydb.commit()
+
+  def insert_alarm_data(self):
+    sql = self.get_defualt_insert_sql("alarm_data", ("log_id",))
+    sql += "(" + str(self.get_last_id("log_data")) + ")"
+    print(sql)
+    self.cursor.execute(sql)
+    self.mydb.commit()
+    
+
+
+
+  def get_defualt_select_sql(self, table, param_tuple):
     columns = ', '.join(param_tuple)
     sql = f"""
       SELECT {columns}
@@ -34,11 +58,28 @@ class DataManager:
     """
     return sql
   
-  def get_growing_plant_info(self):
+  def get_last_id(self, table):
+    sql = self.get_defualt_select_sql(table, ("id", ))
+    sql += " ORDER BY id"
+    sql += " DESC LIMIT 1"
+    self.cursor.execute(sql)
+    result = self.cursor.fetchall()
+    return result[0][0]
+
+
+  def get_log_message(self, status):
+    sql = self.get_defualt_select_sql("message_data", ("*",))
+    sql += f" WHERE status = \"{status}\""
+    self.cursor.execute(sql)
+    result = self.cursor.fetchall()
+    return result[0]
+
+
+  def get_plant_info(self):
     grawing_plant_data = self.get_selected_plant_data()
     plant_type = grawing_plant_data[0][2]
 
-    sql = self.get_defualt_sql("plant_info", ("*",))
+    sql = self.get_defualt_select_sql("plant_info", ("*",))
     sql += f" WHERE plant_type = \"{plant_type}\""
 
     self.cursor.execute(sql)
@@ -47,7 +88,7 @@ class DataManager:
     return result[0]
   
   def get_selected_plant_data(self):
-    sql = self.get_defualt_sql("plant_data", ("*",))
+    sql = self.get_defualt_select_sql("plant_data", ("*",))
     sql += " WHERE isComplete = FALSE"
     sql += " ORDER BY start_date"
     sql += " DESC LIMIT 1"
@@ -56,13 +97,13 @@ class DataManager:
     return result
   
   def get_plant_types(self):
-    sql = self.get_defualt_sql("plant_info", ("plant_type",))
+    sql = self.get_defualt_select_sql("plant_info", ("plant_type",))
     self.cursor.execute(sql)
     result = self.cursor.fetchall()
     return result
   
   def get_growing_plant_data(self):
-    sql = self.get_defualt_sql("plant_data", ("*",))
+    sql = self.get_defualt_select_sql("plant_data", ("*",))
     sql += " WHERE isComplete = FALSE"
     self.cursor.execute(sql)
     result = self.cursor.fetchall()

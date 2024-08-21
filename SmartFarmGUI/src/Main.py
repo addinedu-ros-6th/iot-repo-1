@@ -7,8 +7,9 @@ import cv2, imutils
 from DataManager import DataManager
 from SerialCommunicator import Connector, Receiver, Sender 
 import pygame
+from datetime import datetime
 
-from_class = uic.loadUiType("/home/mr/dev_ws/iot_project/ui/main.ui")[0]
+from_class = uic.loadUiType("SmartFarmGUI/ui/main.ui")[0]
 
 class WindowClass(QMainWindow, from_class):
 
@@ -16,8 +17,11 @@ class WindowClass(QMainWindow, from_class):
     super().__init__()
     pygame.mixer.init()
     self.db = DataManager()
-    
+
     self.setupUi(self)
+    self.timer = QTimer(self) 
+    self.blink_count = 0
+
     self.label_system_message.hide()
     self.btn_harvest.hide()
 
@@ -25,6 +29,8 @@ class WindowClass(QMainWindow, from_class):
     self.btn_massage.clicked.connect(self.onClick_play_massage)
     self.btn_loveVoice.clicked.connect(self.onClick_play_love_voice)
 
+    self.plant_age = 0
+    self.plant_id = 0
     self.environment_parameters = {}
 
     # 포트와 통신을 위한 Thread 객체 생성
@@ -33,6 +39,7 @@ class WindowClass(QMainWindow, from_class):
     self.receiver = Receiver(self.connector.conn)
     self.receiver.received_env_value.connect(self.set_env_cur_value)
     self.receiver.received_env_io_result.connect(self.update_env_io_icon)
+    self.receiver.request_log.connect(self.insert_db_log_data)
 
     self.login()
 
@@ -40,12 +47,14 @@ class WindowClass(QMainWindow, from_class):
   # 키우는 식물이 없는 경우 새로운 plant_data를 추가하고
   # 해당 식물의 정보(권장 온도/습도 등)를 가져온다.
   def login(self):
-    grow_data = self.db.get_growing_plant_data()
-
+    grow_data = self.db.get_growing_plant_data()[0]
+    
     if len(grow_data) == 0 :
       self.init_end_plant_dashboard()
 
     else: 
+      self.plant_id = grow_data[0]
+      self.plant_age = (datetime.now() - grow_data[1]).days
       self.init_start_plant_dashboard()
 
 
@@ -61,10 +70,12 @@ class WindowClass(QMainWindow, from_class):
     self.toggle_active_ui(True)
     self.receiver.start()
     self.start_get_env_data()
+    self.label_day.setText(str(self.plant_age))
 
     # 키우는 식물의 정보를 가져온다. 
-    plant_info = self.db.get_growing_plant_info()
+    plant_info = self.db.get_plant_info()
 
+    
     # 권장 환경 범위값 참조.
     self.environment_parameters = {
       "temperature": {
@@ -108,8 +119,46 @@ class WindowClass(QMainWindow, from_class):
     self.label_cur_light.setText(str(data[2]))
     self.update_env_text_color()
 
+  
+  # 로그 메시지를 화면에 출력한다.
+  def insert_db_log_data(self, event_type, event_value):
+
+    status = ""
+    if self.blink_count == 0:
+      self.on_icon_aircon.setVisible(False)
+      self.on_icon_heater.setVisible(False)
+
+    if event_type == "SE":
+      if event_value == 0 and self.on_icon_aircon.isVisible() == False:
+        status = "hot"
+      elif event_value == 1 and self.on_icon_heater.isVisible() == False:
+        status = "cold"
+      elif event_value == 2 and self.on_icon_water.isVisible() == False:
+        status = "thirsty"
+      elif event_value == 3 and self.on_icon_light.isVisible() == False:
+        status = "dork"
+
+    if status != "":
+      log_message_data =  self.db.get_log_message(status)
+      log_message_id = log_message_data[0]
+      now = datetime.now().strftime("'%Y-%m-%d %H:%M:%S'")
+      log_data = (str(self.plant_id), str(self.plant_age), str(log_message_id), now, "'나중에'")
+      self.db.insert_log_data(log_data)
+      self.db.insert_alarm_data()
+      
+      self.label_system_message.setText(log_message_data[2])
+      self.blink_count = 0
+      self.timer.timeout.connect(self.display_log_message)
+      self.timer.start(1000)
 
 
+  def display_log_message(self):
+    self.label_system_message.setVisible(self.blink_count % 2 == 0)
+    self.blink_count += 1
+    if self.blink_count >=6:
+      self.timer.stop() 
+
+    
   # 환경의 수치 텍스트 색상 변경
   # 냉방/난방/물주기 ON/OFF
   def update_env_text_color(self):

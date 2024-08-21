@@ -362,8 +362,8 @@ border: none;</string>
   <widget class="QLabel" name="label_system_message">
    <property name="geometry">
     <rect>
-     <x>26</x>
-     <y>599</y>
+     <x>20</x>
+     <y>550</y>
      <width>1231</width>
      <height>61</height>
     </rect>
@@ -634,6 +634,9 @@ border-radius: 10px;</string>
    </property>
   </widget>
   <widget class="QLabel" name="on_icon_water">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>268</x>
