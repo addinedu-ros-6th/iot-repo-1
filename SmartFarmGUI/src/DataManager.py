@@ -11,6 +11,14 @@ class DataManager:
             database = "iot"
         )
     
+    # self.mydb = mysql.connector.connect(
+    #   host = '192.168.0.215',
+    #   user = "remote",
+    #   password = "1234",
+    #   database = "iot",
+    #   port=3306
+    # )
+    
     self.cursor = self.mydb.cursor()
 
 
@@ -68,7 +76,6 @@ class DataManager:
     result = self.cursor.fetchall()
     return result
   
-    
   def __del__(self):
     self.mydb.close()
     self.cursor.close()
