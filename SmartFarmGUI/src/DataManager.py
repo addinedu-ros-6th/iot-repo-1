@@ -43,12 +43,8 @@ class DataManager:
   def insert_alarm_data(self):
     sql = self.get_defualt_insert_sql("alarm_data", ("log_id",))
     sql += "(" + str(self.get_last_id("log_data")) + ")"
-    print(sql)
     self.cursor.execute(sql)
     self.mydb.commit()
-    
-
-
 
   def get_defualt_select_sql(self, table, param_tuple):
     columns = ', '.join(param_tuple)
@@ -58,6 +54,15 @@ class DataManager:
     """
     return sql
   
+    
+  def get_log_data(self, plant_id):
+    sql = self.get_defualt_select_sql("log_data", ("*",))
+    sql += f" WHERE plant_id = {plant_id}"
+    self.cursor.execute(sql)
+    result = self.cursor.fetchall()
+    return result
+
+
   def get_last_id(self, table):
     sql = self.get_defualt_select_sql(table, ("id", ))
     sql += " ORDER BY id"
@@ -73,6 +78,17 @@ class DataManager:
     self.cursor.execute(sql)
     result = self.cursor.fetchall()
     return result[0]
+  
+  def get_message_data(self, ids):
+    placeholders = ', '.join(['%s'] * len(ids))
+    
+    sql = self.get_defualt_select_sql("message_data", ("*",))
+    sql += f" WHERE id IN ({placeholders})"
+
+    self.cursor.execute(sql, ids)
+    result = self.cursor.fetchall()
+    return result
+
 
 
   def get_plant_info(self):

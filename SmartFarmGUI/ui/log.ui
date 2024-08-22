@@ -2,6 +2,9 @@
 <ui version="4.0">
  <class>Dialog</class>
  <widget class="QDialog" name="Dialog">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -75,26 +78,6 @@
     <string>End</string>
    </property>
   </widget>
-  <widget class="QComboBox" name="cb_start">
-   <property name="geometry">
-    <rect>
-     <x>61</x>
-     <y>10</y>
-     <width>131</width>
-     <height>23</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QComboBox" name="cb_end">
-   <property name="geometry">
-    <rect>
-     <x>252</x>
-     <y>10</y>
-     <width>131</width>
-     <height>23</height>
-    </rect>
-   </property>
-  </widget>
   <widget class="QLabel" name="label_3">
    <property name="geometry">
     <rect>
@@ -108,7 +91,7 @@
     <string>Status</string>
    </property>
   </widget>
-  <widget class="QComboBox" name="cb_start_2">
+  <widget class="QComboBox" name="cb_status">
    <property name="geometry">
     <rect>
      <x>61</x>
@@ -135,6 +118,26 @@
    </property>
    <property name="text">
     <string>Search</string>
+   </property>
+  </widget>
+  <widget class="QDateEdit" name="dt_start">
+   <property name="geometry">
+    <rect>
+     <x>63</x>
+     <y>9</y>
+     <width>131</width>
+     <height>26</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QDateEdit" name="dt_end">
+   <property name="geometry">
+    <rect>
+     <x>260</x>
+     <y>8</y>
+     <width>131</width>
+     <height>26</height>
+    </rect>
    </property>
   </widget>
  </widget>

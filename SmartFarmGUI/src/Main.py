@@ -6,10 +6,33 @@ from PyQt5.QtCore import *
 import cv2, imutils
 from DataManager import DataManager
 from SerialCommunicator import Connector, Receiver, Sender 
+from QtDialogPopup import LogWindowClass, AlarmWindowClass
+
 import pygame
 from datetime import datetime
+import time
+import os
+import glob
+
 
 from_class = uic.loadUiType("SmartFarmGUI/ui/main.ui")[0]
+
+class Camera(QThread):
+  update = pyqtSignal()
+
+  def __init__(self, sec=0, parent=None):
+    super().__init__()
+    self.main = parent
+    self.running = True
+    self.sec = sec
+
+  def run(self):
+    while self.running == True:
+      self.update.emit()
+      time.sleep(self.sec)
+
+  def stop(self):
+    self.running = False
 
 class WindowClass(QMainWindow, from_class):
 
@@ -17,6 +40,7 @@ class WindowClass(QMainWindow, from_class):
     super().__init__()
     pygame.mixer.init()
     self.db = DataManager()
+
 
     self.setupUi(self)
     self.timer = QTimer(self) 
@@ -28,10 +52,18 @@ class WindowClass(QMainWindow, from_class):
     self.btn_start.clicked.connect(self.onClick_select_crop)
     self.btn_massage.clicked.connect(self.onClick_play_massage)
     self.btn_loveVoice.clicked.connect(self.onClick_play_love_voice)
+    self.btn_log.clicked.connect(self.onClick_open_log)
+    self.btn_alarm.clicked.connect(self.onClick_open_alarm)
 
     self.plant_age = 0
     self.plant_id = 0
     self.environment_parameters = {}
+
+    self.pixmap = QPixmap()
+    self.camera = Camera(0.1, self)
+    self.camera.deamon = True # 메인스레드가 종료되면 스레드에서 실행 중인 프로세서가 완료될때까지 기다린다.
+    self.camera.update.connect(self.update_camera)
+    self.camera_start()
 
     # 포트와 통신을 위한 Thread 객체 생성
     self.connector = Connector()
@@ -47,12 +79,13 @@ class WindowClass(QMainWindow, from_class):
   # 키우는 식물이 없는 경우 새로운 plant_data를 추가하고
   # 해당 식물의 정보(권장 온도/습도 등)를 가져온다.
   def login(self):
-    grow_data = self.db.get_growing_plant_data()[0]
+    grow_data = self.db.get_growing_plant_data()
     
     if len(grow_data) == 0 :
       self.init_end_plant_dashboard()
 
     else: 
+      grow_data = grow_data[0]
       self.plant_id = grow_data[0]
       self.plant_age = (datetime.now() - grow_data[1]).days
       self.init_start_plant_dashboard()
@@ -124,9 +157,6 @@ class WindowClass(QMainWindow, from_class):
   def insert_db_log_data(self, event_type, event_value):
 
     status = ""
-    if self.blink_count == 0:
-      self.on_icon_aircon.setVisible(False)
-      self.on_icon_heater.setVisible(False)
 
     if event_type == "SE":
       if event_value == 0 and self.on_icon_aircon.isVisible() == False:
@@ -142,14 +172,16 @@ class WindowClass(QMainWindow, from_class):
       log_message_data =  self.db.get_log_message(status)
       log_message_id = log_message_data[0]
       now = datetime.now().strftime("'%Y-%m-%d %H:%M:%S'")
-      log_data = (str(self.plant_id), str(self.plant_age), str(log_message_id), now, "'나중에'")
-      self.db.insert_log_data(log_data)
-      self.db.insert_alarm_data()
       
       self.label_system_message.setText(log_message_data[2])
       self.blink_count = 0
       self.timer.timeout.connect(self.display_log_message)
       self.timer.start(1000)
+
+      path = self.capture()
+      log_data = (str(self.plant_id), str(self.plant_age), str(log_message_id), now, "'"+path+"'")
+      self.db.insert_log_data(log_data)
+      self.db.insert_alarm_data()
 
 
   def display_log_message(self):
@@ -157,6 +189,36 @@ class WindowClass(QMainWindow, from_class):
     self.blink_count += 1
     if self.blink_count >=6:
       self.timer.stop() 
+  
+  def capture(self):
+    path = "SmartFarmGUI/record/" +  str(self.plant_id)+"/"
+    file_count = len(glob.glob(os.path.join(path, '*')))
+    filename = path+str(file_count) + '.png'
+    cv2.imwrite(filename, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
+    return path
+
+
+  def camera_start(self):
+    self.camera.running = True
+    self.camera.start()
+    self.video = cv2.VideoCapture(0)
+
+  def cameraStop(self):
+    self.camera.running = False
+    self.video.release()
+
+  def update_camera(self):
+    retval, image = self.video.read()
+
+    if retval:
+      self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+      h, w, c = self.image.shape
+      qimage = QImage(self.image.data, w, h, w*c, QImage.Format_RGB888)
+
+      self.pixmap = self.pixmap.fromImage(qimage)
+      self.pixmap = self.pixmap.scaled(self.label_view.width(), self.label_view.height())
+      self.label_view.setPixmap(self.pixmap)
 
     
   # 환경의 수치 텍스트 색상 변경
@@ -244,17 +306,31 @@ class WindowClass(QMainWindow, from_class):
       self.connector.send(b'ST', 1)
     elif status == 2: # 영양제 (노란잎)
       self.connector.send(b'ST', 2)
-      
+  
+  def onClick_open_alarm(self):
+    alarmWindow = AlarmWindowClass(self.plant_id)
+    alarmWindow.show()
+    alarmWindow.exec_()
+
+  def onClick_open_log(self):
+    logWindow = LogWindowClass(self.plant_id)
+    logWindow.show()
+    logWindow.exec_()
+
 
   def onClick_play_love_voice(self):
     # self.stop_audio()
-    audio_file = "/home/mr/dev_ws/iot_project/resource/loveVoice.mp3"
-    pygame.mixer.music.load(audio_file)
-    pygame.mixer.music.play()
+    audio_file = "SmartFarmGUI/resource/loveVoice.mp3"
+    sound = pygame.mixer.Sound(audio_file)
+    sound.play()
+    # pygame.mixer.music.load(audio_file)
+    # pygame.mixer.music.play()
     return
 
+
+  # 연달아 실행할때 문제있음.
   def onClick_play_massage(self):
-    # self.stop_audio()
+
     audio_file = "/home/mr/dev_ws/iot_project/resource/massage.mp3"
     pygame.mixer.music.load(audio_file)
     pygame.mixer.music.play()
@@ -265,9 +341,14 @@ class WindowClass(QMainWindow, from_class):
 
   def onClick_select_crop(self):
     select = self.comboBox_select.currentText()
+
     if select != "":
       self.db.insert_plant_data(select)
-    self.init_start_plant_dashboard()
+      self.plant_id = self.db.get_last_id("plant_data")
+      path = "SmartFarmGUI/record/" +  str(self.plant_id)
+      os.mkdir(path)
+      self.login()
+      
     return
 
 
