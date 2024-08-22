@@ -85,13 +85,8 @@ class AlarmWindowClass(QDialog, alarm_from_class):
 
 
     self.log_datas = self.db.get_log_data(plant_id)
-
     unique_message_ids = list(set(log_entry[3] for log_entry in self.log_datas))
-    
     self.message_data = self.db.get_message_data(unique_message_ids)
-
-
-
 
     search_data = []
     for log_data in self.log_datas:
