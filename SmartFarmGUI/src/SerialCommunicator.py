@@ -88,7 +88,7 @@ class Receiver(QThread):
           # 치료 요청 응답
           elif cmd == "ST" and res[2] == 0:
             value = int.from_bytes(res[3:4], 'little')
-            print("치료 진행 : ", value)
+            self.request_log.emit('ST', value)
 
           else:
             print("unknown error")
