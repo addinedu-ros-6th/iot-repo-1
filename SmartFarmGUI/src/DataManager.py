@@ -46,6 +46,15 @@ class DataManager:
     self.cursor.execute(sql, (today, type, False))
     self.mydb.commit()
 
+  def insert_snapshot_data(self, plant_id, now, message, path):
+    sql = f"""
+      INSERT INTO snapshot_data (plant_id, date, custom_message, path)
+      VALUES (%s, %s, %s, %s)
+    """
+    self.cursor.execute(sql, (plant_id, now, message, path))
+    self.mydb.commit()
+    
+
   def insert_log_data(self, log_data_tuple):
     datas = ', '.join(log_data_tuple)
     sql = self.get_defualt_insert_sql("log_data", ("plant_id", "plant_age", "message_id", "date", "path"))
@@ -93,6 +102,7 @@ class DataManager:
     result = self.cursor.fetchall()
     return result[0]
   
+
   def get_message_data(self, ids):
     placeholders = ', '.join(['%s'] * len(ids))
     

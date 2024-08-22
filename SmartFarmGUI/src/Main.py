@@ -7,7 +7,7 @@ from PyQt5.QtCore import *
 import cv2, imutils
 from DataManager import DataManager
 from SerialCommunicator import Connector, Receiver, Sender 
-from QtDialogPopup import AlarmWindowClass, LogWindowClass
+from QtDialogPopup import AlarmWindowClass, LogWindowClass, SnapshotWindowClass
 import pygame
 import os
 from datetime import datetime
@@ -57,6 +57,7 @@ class WindowClass(QMainWindow, from_class):
     self.btn_loveVoice.clicked.connect(self.onClick_play_love_voice)
     self.btn_alarm.clicked.connect(self.onClick_open_alarm)
     self.btn_log.clicked.connect(self.onClick_open_log)
+    self.btn_snapshot.clicked.connect(self.onClick_open_snapshot)
 
     self.plant_age = 0
     self.plant_id = 0
@@ -78,31 +79,7 @@ class WindowClass(QMainWindow, from_class):
 
     self.login()
 
-  # 키우는 식물 여부에 따라 UI 활성/비활성하고
-  # 키우는 식물이 없는 경우 새로운 plant_data를 추가하고
-  # 해당 식물의 정보(권장 온도/습도 등)를 가져온다.
 
-  def cameraStart(self):
-        self.camera.running = True
-        self.camera.start()
-        self.video = cv2.VideoCapture(-1)
-
-  def updateCamera(self):
-        #self.label.setText('Camera Running : ' + str(self.count))
-        #self.count += 1
-        retval, self.image = self.video.read()
-        if retval:
-            self.image = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
-
-            h,w,c = self.image.shape
-            qimage = QImage(self.image.data, w, h, w*c, QImage.Format_RGB888)
-
-            self.pixmap = self.pixmap.fromImage(qimage)
-            self.pixmap = self.pixmap.scaled(self.plantcam.width(), self.plantcam.height())
-
-            self.plantcam.setPixmap(self.pixmap)
-
-        self.count +=1
 
   def login(self):
     grow_data = self.db.get_growing_plant_data()
@@ -113,7 +90,6 @@ class WindowClass(QMainWindow, from_class):
     else: 
       grow_data = grow_data[0]
       self.plant_id = grow_data[0]
-      print("login", self.plant_id)
       self.plant_age = (datetime.now() - grow_data[1]).days
       self.init_start_plant_dashboard()
 
@@ -334,6 +310,11 @@ class WindowClass(QMainWindow, from_class):
     elif status == 2: # 영양제 (노란잎)
       self.connector.send(b'ST', 2)
   
+  def onClick_open_snapshot(self):
+    if hasattr(self, 'image'):
+        window_2 = SnapshotWindowClass(self.image, self.plant_id)
+        window_2.exec_()
+
   def onClick_open_alarm(self):
     alarmWindow = AlarmWindowClass(self.plant_id)
     alarmWindow.show()
@@ -403,46 +384,7 @@ class WindowClass(QMainWindow, from_class):
     if pygame.mixer.music.get_busy():
       pygame.mixer.music.stop()
 
-class snapshotui(QDialog):
 
-    def __init__(self, image, parent=None):
-        super().__init__(parent)
-        uic.loadUi('iot-repo-1/SmartFarmGUI/ui/snapshot.ui', self)
-        self.show()
-        self.pixmap = QPixmap()
-        self.SAVEbutton.clicked.connect(self.capture)
-        self.notSAVEbutton.clicked.connect(self.notsave)
-
-        h, w, c = image.shape
-        qimage = QImage(image.data, w, h, w * c, QImage.Format_RGB888)
-        self.pixmap = self.pixmap.fromImage(qimage)
-        self.pixmap = self.pixmap.scaled(self.snapshot.width(), self.snapshot.height(), Qt.KeepAspectRatio)
-        # Label에 pixmap 설정
-        self.snapshot.setPixmap(self.pixmap)
-
-    def capture(self):
-        self.now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'{self.now}.png'
-
-        folder_path = 'iot-repo-1/Snapshot'  # 원하는 폴더 경로로 변경하세요
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)  # 폴더가 존재하지 않으면 생성
-        
-        file_path = os.path.join(folder_path, filename)  # 전체 파일 경로 생성
-
-        # QPixmap을 QImage로 변환
-        image = self.pixmap.toImage()
-        
-        # QImage를 파일로 저장
-        image.save(file_path, "PNG")
-        self.to_plant_message = self.message2plant.text()
-        print("파일경로 : ", file_path)
-        print("현재 시간 : ",self.now)
-        print("메세지 : ", self.to_plant_message)
-        self.close()
-
-    def notsave(self):
-        self.close()
 
 if __name__ == "__main__":
   app = QApplication(sys.argv)

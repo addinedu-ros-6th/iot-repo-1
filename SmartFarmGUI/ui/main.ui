@@ -809,19 +809,6 @@ Select the plants you want to grow.</string>
     </size>
    </property>
   </widget>
-  <widget class="QLabel" name="plantcam">
-   <property name="geometry">
-    <rect>
-     <x>50</x>
-     <y>110</y>
-     <width>1200</width>
-     <height>450</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string/>
-   </property>
-  </widget>
  </widget>
  <resources/>
  <connections/>

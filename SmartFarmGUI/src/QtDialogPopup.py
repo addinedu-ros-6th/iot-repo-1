@@ -1,10 +1,14 @@
+import glob
 import sys
+
+import cv2
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5 import uic
 from PyQt5.QtCore import *
 from DataManager import DataManager
 from datetime import datetime, time
+import os
 
 log_from_class = uic.loadUiType("SmartFarmGUI/ui/log.ui")[0]
 class LogWindowClass(QDialog, log_from_class):
@@ -110,3 +114,41 @@ class AlarmWindowClass(QDialog, alarm_from_class):
       self.tableWidget.setItem(row, 1, QTableWidgetItem(data[1]))
       self.tableWidget.setItem(row, 2, QTableWidgetItem(data[2]))
       self.tableWidget.setItem(row, 3, QTableWidgetItem(data[3]))
+
+
+class SnapshotWindowClass(QDialog):
+
+    def __init__(self, image, plant_id, parent=None):
+        super().__init__(parent)
+        self.db = DataManager()
+        uic.loadUi('SmartFarmGUI/ui/snapshot.ui', self)
+        self.show()
+        self.plant_id = plant_id
+        self.pixmap = QPixmap()
+        self.image = image
+
+        self.SAVEbutton.clicked.connect(self.capture)
+        self.notSAVEbutton.clicked.connect(self.notsave)
+
+        h, w, c = image.shape
+        qimage = QImage(image.data, w, h, w * c, QImage.Format_RGB888)
+        self.pixmap = self.pixmap.fromImage(qimage)
+        self.pixmap = self.pixmap.scaled(self.snapshot.width(), self.snapshot.height(), Qt.KeepAspectRatio)
+        # Label에 pixmap 설정
+        self.snapshot.setPixmap(self.pixmap)
+
+    def capture(self):
+
+        path = "SmartFarmGUI/record/" +  str(self.plant_id)+"/"
+        file_count = len(glob.glob(os.path.join(path, '*')))
+        filename = path+str(file_count) + '.png'
+        cv2.imwrite(filename, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
+
+        to_plant_message = self.message2plant.text()
+        now =  datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.db.insert_snapshot_data(self.plant_id,now,to_plant_message, filename)
+
+        self.close()
+
+    def notsave(self):
+        self.close()
