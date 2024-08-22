@@ -171,6 +171,21 @@ class WindowClass(QMainWindow, from_class):
       elif event_value == 3 and self.on_icon_light.isVisible() == False:
         status = "dork"
 
+    elif event_type == "ST":
+      if event_value == 0 : # 치료제
+        status = "medicine"
+      elif event_value == 1:
+        status = "bug"
+      elif event_value == 2:
+        status = "yellow"
+    
+    elif event_type == "SA":
+      if event_value == 0:
+        status = "confession"
+      elif event_value == 1:
+        status = "love"
+
+
     if status != "":
       log_message_data =  self.db.get_log_message(status)
       log_message_id = log_message_data[0]
