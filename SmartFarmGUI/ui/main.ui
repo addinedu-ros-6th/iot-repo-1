@@ -32,39 +32,6 @@
     <string/>
    </property>
   </widget>
-  <widget class="QComboBox" name="comboBox_select">
-   <property name="geometry">
-    <rect>
-     <x>40</x>
-     <y>30</y>
-     <width>191</width>
-     <height>51</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>12</pointsize>
-    </font>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">border-color: rgb(0, 85, 0);</string>
-   </property>
-   <property name="currentText">
-    <string/>
-   </property>
-   <property name="sizeAdjustPolicy">
-    <enum>QComboBox::AdjustToContentsOnFirstShow</enum>
-   </property>
-   <property name="minimumContentsLength">
-    <number>0</number>
-   </property>
-   <property name="iconSize">
-    <size>
-     <width>16</width>
-     <height>16</height>
-    </size>
-   </property>
-  </widget>
   <widget class="QPushButton" name="btn_alarm">
    <property name="geometry">
     <rect>
@@ -457,24 +424,6 @@ background-color: rgb(30, 30, 30);</string>
    </property>
    <property name="toolButtonStyle">
     <enum>Qt::ToolButtonTextUnderIcon</enum>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="btn_start">
-   <property name="geometry">
-    <rect>
-     <x>240</x>
-     <y>30</y>
-     <width>111</width>
-     <height>51</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>14</pointsize>
-    </font>
-   </property>
-   <property name="text">
-    <string>select</string>
    </property>
   </widget>
   <widget class="QLabel" name="image_water">

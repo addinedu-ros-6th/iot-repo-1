@@ -12,26 +12,31 @@ import pygame
 import os
 from datetime import datetime
 import time
+# import numpy as np
+# from tensorflow.keras.models import load_model
+# from tensorflow.keras.preprocessing import image
+# from ultralytics import YOLO
+from SmartFarmAI.src.final_classification import TomatoDiseaseClassifier
+from SmartFarmAI.src.final_detect import TomatoDetector
 
-class Camera(QThread):
-    update = pyqtSignal()
+class MonitoringThread(QThread):
+  update = pyqtSignal()
 
-    def __init__(self, sec=0, parent=None):
-        super().__init__()
-        self.main = parent
-        self.running = True
-        self.sec = sec
+  def __init__(self, sec=0, parent=None):
+    super().__init__()
+    self.main = parent
+    self.running = True
+    self.sec = sec
 
-    def run(self):  # camera에서 start 하면 run 함수가 호출된다. 
-        while self.running == True:
-            self.update.emit()
-            time.sleep(self.sec)
-    
-    def stop(self):
-        self.running = False
+  def run(self):
+    while self.running == True:
+        self.update.emit()
+        time.sleep(self.sec)
 
+  def stop(self):
+    self.running = False
 
-from_class = uic.loadUiType("iot-repo-1/SmartFarmGUI/ui/main.ui")[0]
+from_class = uic.loadUiType("SmartFarmGUI/ui/main.ui")[0]
 
 class WindowClass(QMainWindow, from_class):
 
@@ -40,19 +45,22 @@ class WindowClass(QMainWindow, from_class):
     pygame.mixer.init()
     self.db = DataManager()
 
+    # 열매 수확 가능 판단.
+    self.detectThread = MonitoringThread(0.1)
+    self.detectThread.update.connect(self.detector_update)
+    self.detector_start()
+
+    # self.classificationThread = MonitoringThread(0.1)
+
     self.setupUi(self)
     self.timer = QTimer(self) 
     self.blink_count = 0
 
     self.label_system_message.hide()
     self.btn_harvest.hide()
-    self.camera = Camera(self)
-    self.count = 0
-    
+    # self.camera = Camera(self)    
     self.pixmap = QPixmap()
     
-
-
     #self.btn_start.clicked.connect(self.onClick_select_crop)
     self.btn_massage.clicked.connect(self.onClick_play_massage)
     self.btn_loveVoice.clicked.connect(self.onClick_play_love_voice)
@@ -64,11 +72,10 @@ class WindowClass(QMainWindow, from_class):
     self.plant_id = 0
     self.environment_parameters = {}
 
-    self.pixmap = QPixmap()
-    self.camera = Camera(0.1, self)
-    self.camera.deamon = True # 메인스레드가 종료되면 스레드에서 실행 중인 프로세서가 완료될때까지 기다린다.
-    self.camera.update.connect(self.update_camera)
-    self.camera_start()
+    # self.camera = Camera(0.1, self)
+    # self.camera.deamon = True # 메인스레드가 종료되면 스레드에서 실행 중인 프로세서가 완료될때까지 기다린다.
+    # self.camera.update.connect(self.update_camera)
+    # self.camera_start()
 
 
     # 포트와 통신을 위한 Thread 객체 생성
@@ -81,9 +88,11 @@ class WindowClass(QMainWindow, from_class):
     self.login()
 
   def open_select_ui(self):
-        plant_types = self.db.get_plant_types()
-        select_window = SelectWindowClass(plant_types)
-        select_window.exec_()
+    plant_types = self.db.get_plant_types()
+    select_window = SelectWindowClass(plant_types)
+    select_window.exec_()
+    self.login()
+    
 
   def login(self):
     grow_data = self.db.get_growing_plant_data()
@@ -101,10 +110,6 @@ class WindowClass(QMainWindow, from_class):
   def init_end_plant_dashboard(self):
     self.toggle_active_ui(False)
     self.open_select_ui()
-    
-    self.onClick_select_crop()
-    
-
     
 
   def init_start_plant_dashboard(self):
@@ -207,7 +212,6 @@ class WindowClass(QMainWindow, from_class):
       self.db.insert_log_data(log_data)
       self.db.insert_alarm_data()
 
-
   def display_log_message(self):
     self.label_system_message.setVisible(self.blink_count % 2 == 0)
     self.blink_count += 1
@@ -215,35 +219,43 @@ class WindowClass(QMainWindow, from_class):
       self.timer.stop() 
   
   def capture(self):
-    path = "iot-repo-1/SmartFarmGUI/record/" +  str(self.plant_id)+"/"
+    path = "SmartFarmGUI/record/" +  str(self.plant_id)+"/"
     file_count = len(glob.glob(os.path.join(path, '*')))
     filename = path+str(file_count) + '.png'
     cv2.imwrite(filename, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
     return path
 
-  def camera_start(self):
-    self.camera.running = True
-    self.camera.start()
-    self.video = cv2.VideoCapture(0)
+  def detector_start(self):
+    self.detectThread.running = True
+    model_path = 'SmartFarmAI/src/trained_model.pt'  # YOLO 모델 파일 경로
+    self.detector = TomatoDetector(model_path)
+    self.detectThread.start()
 
-  def cameraStop(self):
-    self.camera.running = False
-    self.video.release()
+  def detector_update(self):
+    # 감지 결과 얻기
+    result_image = self.detector.detect()
+    # 결과 이미지를 화면에 표시
+    self.update_camera(result_image)
 
+  def classification_start(self):
+    self.classificationThread = True
+    classifier = TomatoDiseaseClassifier('SmartFarmAI/src/tomato_vgg16_model.h5')
+    classifier.run()
+  
 
-  # 딥러닝에서 이미지 파일을 받아온다. 
-  def update_camera(self):
-    retval, image = self.video.read()
+  # 딥러닝에서 이미지 파일을 받아올 예정.
+  def update_camera(self, image):
+    # retval, image = self.video.read()
 
-    if retval:
-      self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    # if retval:
+    self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-      h, w, c = self.image.shape
-      qimage = QImage(self.image.data, w, h, w*c, QImage.Format_RGB888)
+    h, w, c = self.image.shape
+    qimage = QImage(self.image.data, w, h, w*c, QImage.Format_RGB888)
 
-      self.pixmap = self.pixmap.fromImage(qimage)
-      self.pixmap = self.pixmap.scaled(self.label_view.width(), self.label_view.height())
-      self.label_view.setPixmap(self.pixmap)
+    self.pixmap = self.pixmap.fromImage(qimage)
+    self.pixmap = self.pixmap.scaled(self.label_view.width(), self.label_view.height())
+    self.label_view.setPixmap(self.pixmap)
 
     
   # 환경의 수치 텍스트 색상 변경
@@ -309,12 +321,10 @@ class WindowClass(QMainWindow, from_class):
     self.farm_sensor_polling_thread.start()
     return
 
-
   # 멀티스레드의 run을 정지한다.
   def stop_get_env_data(self):
     self.farm_sensor_polling_thread.running = False
     return
-
 
   # 1초마다 스마트팜의 환경 데이터를 요청한다.  
   def update_get_env_data(self):
@@ -349,16 +359,15 @@ class WindowClass(QMainWindow, from_class):
 
   def onClick_play_love_voice(self):
     # self.stop_audio()
-    audio_file = "iot-repo-1/SmartFarmGUI/resource/loveVoice.mp3"
+    audio_file = "SmartFarmGUI/resource/loveVoice.mp3"
     sound = pygame.mixer.Sound(audio_file)
     sound.play()
-    
     return
 
   # 연달아 실행할때 문제있음.
   def onClick_play_massage(self):
     # self.stop_audio()
-    audio_file = "iot-repo-1/SmartFarmGUI/resource/massage.mp3"
+    audio_file = "SmartFarmGUI/resource/massage.mp3"
     pygame.mixer.music.load(audio_file)
     pygame.mixer.music.play()
 
@@ -366,24 +375,9 @@ class WindowClass(QMainWindow, from_class):
     return
 
 
-  def onClick_select_crop(self):
-    select = self.comboBox_select.currentText()
-
-    if select != "":
-      self.db.insert_plant_data(select)
-      self.plant_id = self.db.get_last_id("plant_data")
-      path = "iot-repo-1/SmartFarmGUI/record/" +  str(self.plant_id)
-      os.mkdir(path)
-      self.login()
-      
-    return
-
-
   def toggle_active_ui(self, isGrowing):
 
     if isGrowing == True:
-      self.comboBox_select.hide()
-      self.btn_start.hide()
       self.label_select.hide()
       self.btn_massage.show()
       self.btn_loveVoice.show()
@@ -392,8 +386,6 @@ class WindowClass(QMainWindow, from_class):
       self.label_2.show()
 
     else :
-      self.comboBox_select.show()
-      self.btn_start.show()
       self.label_select.show()
       self.btn_massage.hide()
       self.btn_loveVoice.hide()
