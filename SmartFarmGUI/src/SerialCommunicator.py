@@ -83,7 +83,7 @@ class Receiver(QThread):
 
           # 마사지 요청에 대한 응답
           elif cmd == "SA" and res[2] == 0:
-            print("마사지")
+            self.request_log.emit('SA', value)
 
           # 치료 요청 응답
           elif cmd == "ST" and res[2] == 0:

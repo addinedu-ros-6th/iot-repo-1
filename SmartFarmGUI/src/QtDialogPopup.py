@@ -28,7 +28,6 @@ class LogWindowClass(QDialog, log_from_class):
     self.dt_start.setDate(min_day)
     self.dt_end.setDate(max_day)
 
-
     unique_message_ids = list(set(log_entry[3] for log_entry in self.log_datas))
     self.message_data = self.db.get_message_data(unique_message_ids)
    

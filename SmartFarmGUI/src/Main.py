@@ -40,7 +40,6 @@ class WindowClass(QMainWindow, from_class):
     pygame.mixer.init()
     self.db = DataManager()
 
-
     self.setupUi(self)
     self.timer = QTimer(self) 
     self.blink_count = 0
@@ -215,7 +214,6 @@ class WindowClass(QMainWindow, from_class):
     cv2.imwrite(filename, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
     return path
 
-
   def camera_start(self):
     self.camera.running = True
     self.camera.start()
@@ -225,6 +223,8 @@ class WindowClass(QMainWindow, from_class):
     self.camera.running = False
     self.video.release()
 
+
+  # 딥러닝에서 이미지 파일을 받아온다. 
   def update_camera(self):
     retval, image = self.video.read()
 
@@ -340,14 +340,13 @@ class WindowClass(QMainWindow, from_class):
     logWindow.show()
     logWindow.exec_()
 
-
   def onClick_play_love_voice(self):
     # self.stop_audio()
     audio_file = "SmartFarmGUI/resource/loveVoice.mp3"
     sound = pygame.mixer.Sound(audio_file)
     sound.play()
+    
     return
-
 
   # 연달아 실행할때 문제있음.
   def onClick_play_massage(self):
