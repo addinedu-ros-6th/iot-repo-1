@@ -10,7 +10,8 @@ from DataManager import DataManager
 from datetime import datetime, time
 import os
 
-log_from_class = uic.loadUiType("SmartFarmGUI/ui/log.ui")[0]
+log_from_class = uic.loadUiType("iot-repo-1/SmartFarmGUI/ui/log.ui")[0]
+
 class LogWindowClass(QDialog, log_from_class):
   def __init__(self, plant_id):
     super().__init__()
@@ -76,7 +77,7 @@ class LogWindowClass(QDialog, log_from_class):
       self.tableWidget.setItem(row, 3, QTableWidgetItem(data[3]))
 
         
-alarm_from_class = uic.loadUiType("SmartFarmGUI/ui/alarm.ui")[0]
+alarm_from_class = uic.loadUiType("iot-repo-1/SmartFarmGUI/ui/alarm.ui")[0]
 
 
 class AlarmWindowClass(QDialog, alarm_from_class):
@@ -114,13 +115,29 @@ class AlarmWindowClass(QDialog, alarm_from_class):
       self.tableWidget.setItem(row, 2, QTableWidgetItem(data[2]))
       self.tableWidget.setItem(row, 3, QTableWidgetItem(data[3]))
 
+class SelectWindowClass(QDialog):
+
+  def __init__(self, plant_types, parent=None):
+        super().__init__(parent)
+        uic.loadUi('iot-repo-1/SmartFarmGUI/ui/select.ui', self)
+        self.show()
+
+        for item in plant_types:
+          self.comboBox_select.addItem(item[0])
+
+        self.btn_start.clicked.connect(self.goto_main)
+
+  def goto_main(self):
+        self.close()
+        
+        
 
 class SnapshotWindowClass(QDialog):
 
     def __init__(self, image, plant_id, parent=None):
         super().__init__(parent)
         self.db = DataManager()
-        uic.loadUi('SmartFarmGUI/ui/snapshot.ui', self)
+        uic.loadUi('iot-repo-1/SmartFarmGUI/ui/snapshot.ui', self)
         self.show()
         self.plant_id = plant_id
         self.pixmap = QPixmap()
@@ -138,7 +155,7 @@ class SnapshotWindowClass(QDialog):
 
     def capture(self):
 
-        path = "SmartFarmGUI/record/" +  str(self.plant_id)+"/"
+        path = "iot-repo-1/SmartFarmGUI/record/" +  str(self.plant_id)+"/"
         file_count = len(glob.glob(os.path.join(path, '*')))
         filename = path+str(file_count) + '.png'
         cv2.imwrite(filename, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))

@@ -7,7 +7,7 @@ from PyQt5.QtCore import *
 import cv2, imutils
 from DataManager import DataManager
 from SerialCommunicator import Connector, Receiver, Sender 
-from QtDialogPopup import AlarmWindowClass, LogWindowClass, SnapshotWindowClass
+from QtDialogPopup import AlarmWindowClass, LogWindowClass,SelectWindowClass ,SnapshotWindowClass, SelectWindowClass
 import pygame
 import os
 from datetime import datetime
@@ -31,7 +31,7 @@ class Camera(QThread):
         self.running = False
 
 
-from_class = uic.loadUiType("SmartFarmGUI/ui/main.ui")[0]
+from_class = uic.loadUiType("iot-repo-1/SmartFarmGUI/ui/main.ui")[0]
 
 class WindowClass(QMainWindow, from_class):
 
@@ -51,7 +51,9 @@ class WindowClass(QMainWindow, from_class):
     
     self.pixmap = QPixmap()
     
-    self.btn_start.clicked.connect(self.onClick_select_crop)
+
+
+    #self.btn_start.clicked.connect(self.onClick_select_crop)
     self.btn_massage.clicked.connect(self.onClick_play_massage)
     self.btn_loveVoice.clicked.connect(self.onClick_play_love_voice)
     self.btn_alarm.clicked.connect(self.onClick_open_alarm)
@@ -78,7 +80,10 @@ class WindowClass(QMainWindow, from_class):
 
     self.login()
 
-
+  def open_select_ui(self):
+        plant_types = self.db.get_plant_types()
+        select_window = SelectWindowClass(plant_types)
+        select_window.exec_()
 
   def login(self):
     grow_data = self.db.get_growing_plant_data()
@@ -95,10 +100,12 @@ class WindowClass(QMainWindow, from_class):
 
   def init_end_plant_dashboard(self):
     self.toggle_active_ui(False)
-    plant_types = self.db.get_plant_types()
+    self.open_select_ui()
+    
+    self.onClick_select_crop()
+    
 
-    for item in plant_types:
-      self.comboBox_select.addItem(item[0])
+    
 
   def init_start_plant_dashboard(self):
 
@@ -208,7 +215,7 @@ class WindowClass(QMainWindow, from_class):
       self.timer.stop() 
   
   def capture(self):
-    path = "SmartFarmGUI/record/" +  str(self.plant_id)+"/"
+    path = "iot-repo-1/SmartFarmGUI/record/" +  str(self.plant_id)+"/"
     file_count = len(glob.glob(os.path.join(path, '*')))
     filename = path+str(file_count) + '.png'
     cv2.imwrite(filename, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
@@ -342,7 +349,7 @@ class WindowClass(QMainWindow, from_class):
 
   def onClick_play_love_voice(self):
     # self.stop_audio()
-    audio_file = "SmartFarmGUI/resource/loveVoice.mp3"
+    audio_file = "iot-repo-1/SmartFarmGUI/resource/loveVoice.mp3"
     sound = pygame.mixer.Sound(audio_file)
     sound.play()
     
@@ -351,7 +358,7 @@ class WindowClass(QMainWindow, from_class):
   # 연달아 실행할때 문제있음.
   def onClick_play_massage(self):
     # self.stop_audio()
-    audio_file = "SmartFarmGUI/resource/massage.mp3"
+    audio_file = "iot-repo-1/SmartFarmGUI/resource/massage.mp3"
     pygame.mixer.music.load(audio_file)
     pygame.mixer.music.play()
 
@@ -365,7 +372,7 @@ class WindowClass(QMainWindow, from_class):
     if select != "":
       self.db.insert_plant_data(select)
       self.plant_id = self.db.get_last_id("plant_data")
-      path = "SmartFarmGUI/record/" +  str(self.plant_id)
+      path = "iot-repo-1/SmartFarmGUI/record/" +  str(self.plant_id)
       os.mkdir(path)
       self.login()
       
