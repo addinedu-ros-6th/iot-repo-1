@@ -98,7 +98,7 @@ class DataManager:
     
     sql = self.get_defualt_select_sql("message_data", ("*",))
     sql += f" WHERE id IN ({placeholders})"
-
+    print(sql)
     self.cursor.execute(sql, ids)
     result = self.cursor.fetchall()
     return result

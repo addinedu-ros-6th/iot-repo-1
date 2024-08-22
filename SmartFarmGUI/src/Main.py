@@ -1,3 +1,4 @@
+import glob
 import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -6,9 +7,31 @@ from PyQt5.QtCore import *
 import cv2, imutils
 from DataManager import DataManager
 from SerialCommunicator import Connector, Receiver, Sender 
+from QtDialogPopup import AlarmWindowClass, LogWindowClass
 import pygame
+import os
+from datetime import datetime
+import time
 
-from_class = uic.loadUiType("/home/mr/dev_ws/iot_project/ui/main.ui")[0]
+class Camera(QThread):
+    update = pyqtSignal()
+
+    def __init__(self, sec=0, parent=None):
+        super().__init__()
+        self.main = parent
+        self.running = True
+        self.sec = sec
+
+    def run(self):  # camera에서 start 하면 run 함수가 호출된다. 
+        while self.running == True:
+            self.update.emit()
+            time.sleep(self.sec)
+    
+    def stop(self):
+        self.running = False
+
+
+from_class = uic.loadUiType("SmartFarmGUI/ui/main.ui")[0]
 
 class WindowClass(QMainWindow, from_class):
 
@@ -26,12 +49,14 @@ class WindowClass(QMainWindow, from_class):
     self.btn_harvest.hide()
     self.camera = Camera(self)
     self.count = 0
-
+    
     self.pixmap = QPixmap()
-  
+    
     self.btn_start.clicked.connect(self.onClick_select_crop)
     self.btn_massage.clicked.connect(self.onClick_play_massage)
     self.btn_loveVoice.clicked.connect(self.onClick_play_love_voice)
+    self.btn_alarm.clicked.connect(self.onClick_open_alarm)
+    self.btn_log.clicked.connect(self.onClick_open_log)
 
     self.plant_age = 0
     self.plant_id = 0
@@ -43,10 +68,6 @@ class WindowClass(QMainWindow, from_class):
     self.camera.update.connect(self.update_camera)
     self.camera_start()
 
-  def snapshotwindow(self):
-    if hasattr(self, 'image'):
-        window_2 = snapshotui(self.image, self)
-        window_2.exec_()
 
     # 포트와 통신을 위한 Thread 객체 생성
     self.connector = Connector()
@@ -92,6 +113,7 @@ class WindowClass(QMainWindow, from_class):
     else: 
       grow_data = grow_data[0]
       self.plant_id = grow_data[0]
+      print("login", self.plant_id)
       self.plant_age = (datetime.now() - grow_data[1]).days
       self.init_start_plant_dashboard()
 
@@ -325,16 +347,16 @@ class WindowClass(QMainWindow, from_class):
 
   def onClick_play_love_voice(self):
     # self.stop_audio()
-    audio_file = "/home/mr/dev_ws/iot_project/resource/loveVoice.mp3"
-    pygame.mixer.music.load(audio_file)
-    pygame.mixer.music.play()
+    audio_file = "SmartFarmGUI/resource/loveVoice.mp3"
+    sound = pygame.mixer.Sound(audio_file)
+    sound.play()
     return
 
 
   # 연달아 실행할때 문제있음.
   def onClick_play_massage(self):
     # self.stop_audio()
-    audio_file = "/home/mr/dev_ws/iot_project/resource/massage.mp3"
+    audio_file = "SmartFarmGUI/resource/massage.mp3"
     pygame.mixer.music.load(audio_file)
     pygame.mixer.music.play()
 
