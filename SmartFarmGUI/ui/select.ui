@@ -62,7 +62,7 @@
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>../../../../../Downloads/pngegg.png</pixmap>
+    <pixmap>../images/background.png</pixmap>
    </property>
   </widget>
   <widget class="QLabel" name="cat">
@@ -78,7 +78,7 @@
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>../../../../../Downloads/pngegg (2) (1).png</pixmap>
+    <pixmap>../images/cat.png</pixmap>
    </property>
   </widget>
   <widget class="QLabel" name="textballoon">
@@ -94,7 +94,7 @@
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>../../../../../Downloads/pngegg (3) (1).png</pixmap>
+    <pixmap>../images/balloon.png</pixmap>
    </property>
   </widget>
   <widget class="QLabel" name="text2">
