@@ -16,7 +16,7 @@ class TomatoDiseaseClassifier:
         # 마우스 콜백 설정
         cv2.namedWindow('Webcam')
         cv2.setMouseCallback('Webcam', self.mouse_callback)
-        cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_SILENT)
+        # cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_SILENT)
 
     def mouse_callback(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
