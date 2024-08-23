@@ -75,17 +75,18 @@ class TomatoDiseaseClassifier:
                     cv2.imshow('ROI', roi_cropped)
 
             cv2.imshow('Webcam', frame)
-            result_tuple = (None, None)
+
             
             # 분류 결과와 프레임 정보를 튜플로 반환
             if predicted_class is not None:
                 result_tuple = (predicted_class[0], frame)  # predicted_class와 frame을 튜플로 저장
-                print(result_tuple)  # 실시간으로 튜플 결과 출력
+                return result_tuple
+                # print(result_tuple)  # 실시간으로 튜플 결과 출력
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
             
-            return result_tuple 
+            
         
         self.cap.release()
         cv2.destroyAllWindows()
