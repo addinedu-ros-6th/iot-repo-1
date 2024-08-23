@@ -41,6 +41,19 @@ class DataManager :
     self.cursor.execute(sql)
     results = self.cursor.fetchall()
     return results
+  
+  def select_last_id(self, table):
+    sql = f"""
+      SELECT id
+      FROM {table}
+    """
+    sql += " ORDER BY id"
+    sql += " DESC LIMIT 1"
+    print("select_last_id: ", sql)
+    self.cursor.execute(sql)
+    result = self.cursor.fetchall()
+    return result[0][0]
+
 
 
   def __del__(self):
