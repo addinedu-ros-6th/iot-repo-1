@@ -32,6 +32,9 @@ class TomatoDiseaseClassifier:
     def run(self):
         while True:
             ret, frame = self.cap.read()
+            print('\033[91m'+'read: ' + '\033[92m', ret)
+
+           
             if not ret:
                 break
 
@@ -90,7 +93,9 @@ class TomatoDiseaseClassifier:
             
         
         self.cap.release()
+        print('\033[91m'+'self.cap.release: ' + '\033[92m', self.cap.release())
         cv2.destroyAllWindows()
+
 
 # 사용 예시
 # classifier = TomatoDiseaseClassifier('path/to/your/model.h5')

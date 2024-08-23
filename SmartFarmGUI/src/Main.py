@@ -46,11 +46,6 @@ class WindowClass(QMainWindow, from_class):
     pygame.mixer.init()
     self.db = DataManager()
 
-    # 잎파리 테스트
-    self.classificationThread = MonitoringThread(0.1)
-    self.classificationThread.update.connect(self.classification_update)
-    self.classification_start()
-
     self.ageThread = MonitoringThread(5)
     self.ageThread.update.connect(self.age_update)
     self.age_start()
@@ -105,6 +100,17 @@ class WindowClass(QMainWindow, from_class):
       self.plant_age = (datetime.now() - growing_plant_data[1]).days
       self.init_start_plant_dashboard()
 
+      if self.plant_age < 50:
+        # 잎파리 테스트
+        self.classificationThread = MonitoringThread(0.1)
+        self.classificationThread.update.connect(self.classification_update)
+        self.classification_start()
+
+      else:
+        # 열매 수확 가능 판단.
+        self.detectThread = MonitoringThread(0.1)
+        self.detectThread.update.connect(self.detector_update)
+        self.detector_start()
 
   def init_end_plant_dashboard(self):
     self.toggle_active_ui(False)
@@ -249,15 +255,11 @@ class WindowClass(QMainWindow, from_class):
     self.label_day.setText(str(self.plant_age))
 
 
-    if self.plant_need_day <= self.plant_age and self.classificationThread is not None and self.classificationThread.isRunning():
+    if self.plant_need_day <= self.plant_age:
       print('\033[91m'+'plant_age: ' + '\033[0m', "old Age")
-      
       self.btn_harvest.show()
-      self.classification_stop()
-      # 열매 수확 가능 판단.
-      self.detectThread = MonitoringThread(0.1)
-      self.detectThread.update.connect(self.detector_update)
-      self.detector_start()
+
+
 
 
   def onClick_harvest(self):
@@ -316,10 +318,6 @@ class WindowClass(QMainWindow, from_class):
     if plant_status == 0 and self.plant_condition[0] == 0:
       self.connector.send(b'ST', 0)
       self.plant_condition[0] = 1
-    elif plant_status == 1:
-      self.plant_condition[0] = 0
-      self.plant_condition[1] = 0
-      self.plant_condition[2] = 0
     elif plant_status == 2 and self.plant_condition[1] == 0:
       self.connector.send(b'ST', 1)
       self.plant_condition[1] = 1
