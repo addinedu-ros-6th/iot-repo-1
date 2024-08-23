@@ -287,6 +287,7 @@ class WindowClass(QMainWindow, from_class):
     result_image = self.detector.detect()
     # print('\033[91m'+'result_image: ' + '\033[90m' + "detector_update"+ '\033[0m')
     # 결과 이미지를 화면에 표시
+    # print("detector_updateq")
     self.update_camera(result_image)
     
 

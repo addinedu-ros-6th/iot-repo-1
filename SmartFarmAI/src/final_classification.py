@@ -32,6 +32,7 @@ class TomatoDiseaseClassifier:
     def run(self):
         while True:
             ret, frame = self.cap.read()
+            print("run")
             if not ret:
                 break
 
