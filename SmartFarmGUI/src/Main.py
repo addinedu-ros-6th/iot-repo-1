@@ -10,7 +10,7 @@ from SerialCommunicator import Connector, Receiver, Sender
 from QtDialogPopup import AlarmWindowClass, LogWindowClass,SelectWindowClass ,SnapshotWindowClass, SelectWindowClass
 import pygame
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 # import numpy as np
 # from tensorflow.keras.models import load_model
@@ -45,12 +45,14 @@ class WindowClass(QMainWindow, from_class):
     pygame.mixer.init()
     self.db = DataManager()
 
-    # 열매 수확 가능 판단.
-    self.detectThread = MonitoringThread(0.1)
-    self.detectThread.update.connect(self.detector_update)
-    self.detector_start()
+    # 잎파리 테스트
+    self.classificationThread = MonitoringThread(0.1)
+    self.classificationThread.update.connect(self.classification_update)
+    self.classification_start()
 
-    # self.classificationThread = MonitoringThread(0.1)
+    self.ageThread = MonitoringThread(2)
+    self.ageThread.update.connect(self.age_update)
+    self.age_start()
 
     self.setupUi(self)
     self.timer = QTimer(self) 
@@ -58,10 +60,8 @@ class WindowClass(QMainWindow, from_class):
 
     self.label_system_message.hide()
     self.btn_harvest.hide()
-    # self.camera = Camera(self)    
     self.pixmap = QPixmap()
     
-    #self.btn_start.clicked.connect(self.onClick_select_crop)
     self.btn_massage.clicked.connect(self.onClick_play_massage)
     self.btn_loveVoice.clicked.connect(self.onClick_play_love_voice)
     self.btn_alarm.clicked.connect(self.onClick_open_alarm)
@@ -70,20 +70,16 @@ class WindowClass(QMainWindow, from_class):
 
     self.plant_age = 0
     self.plant_id = 0
+    self.plant_need_day = 0
     self.environment_parameters = {}
-
-    # self.camera = Camera(0.1, self)
-    # self.camera.deamon = True # 메인스레드가 종료되면 스레드에서 실행 중인 프로세서가 완료될때까지 기다린다.
-    # self.camera.update.connect(self.update_camera)
-    # self.camera_start()
-
 
     # 포트와 통신을 위한 Thread 객체 생성
     self.connector = Connector()
-    self.farm_sensor_polling_thread = Sender(1, self.update_get_env_data)
+    self.farm_sensor_polling_thread = Sender(2, self.update_get_env_data)
     self.receiver = Receiver(self.connector.conn)
     self.receiver.received_env_value.connect(self.set_env_cur_value)
     self.receiver.received_env_io_result.connect(self.update_env_io_icon)
+    self.receiver.request_log.connect(self.insert_db_log_data)
 
     self.login()
 
@@ -92,18 +88,17 @@ class WindowClass(QMainWindow, from_class):
     select_window = SelectWindowClass(plant_types)
     select_window.exec_()
     self.login()
-    
-
+   
   def login(self):
-    grow_data = self.db.get_growing_plant_data()
+    growing_plant_data = self.db.get_growing_plant_data()
     
-    if len(grow_data) == 0 :
+    if len(growing_plant_data) == 0 :
       self.init_end_plant_dashboard()
 
     else: 
-      grow_data = grow_data[0]
-      self.plant_id = grow_data[0]
-      self.plant_age = (datetime.now() - grow_data[1]).days
+      growing_plant_data = growing_plant_data[0]
+      self.plant_id = growing_plant_data[0]
+      self.plant_age = (datetime.now() - growing_plant_data[1]).days
       self.init_start_plant_dashboard()
 
 
@@ -122,7 +117,8 @@ class WindowClass(QMainWindow, from_class):
     # 키우는 식물의 정보를 가져온다. 
     plant_info = self.db.get_plant_info()
 
-    
+    self.plant_need_day = plant_info[1]
+
     # 권장 환경 범위값 참조.
     self.environment_parameters = {
       "temperature": {
@@ -224,30 +220,83 @@ class WindowClass(QMainWindow, from_class):
     filename = path+str(file_count) + '.png'
     cv2.imwrite(filename, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
     return path
+  
+  def age_start(self):
+    self.ageThread.running = True
+    self.ageThread.start()
+
+  def age_stop(self):
+    self.ageThread.running = False
+
+  def age_update(self): 
+   
+    start_day = self.db.get_growing_plant_data(("start_date",))[0][0] # 시연을 위한 코드
+    start_day = start_day - timedelta(days=1)
+    start_day_str = start_day.strftime('%Y-%m-%d %H:%M:%S')
+    self.db.update_plant_data(("start_date",start_day_str))
+    self.plant_age = (datetime.now() - start_day).days
+
+    print("age_update: ",'\033[91m'+'현재 나이:' +'\033[90m', str(self.plant_age) +'\033[0m')
+
+    self.label_day.setText(str(self.plant_age))
+    if self.plant_need_day <= self.plant_age:
+      self.classification_stop()
+
 
   def detector_start(self):
+    print('\033[91m'+'수확 가능 기간:\033[0m')
     self.detectThread.running = True
     model_path = 'SmartFarmAI/src/trained_model.pt'  # YOLO 모델 파일 경로
     self.detector = TomatoDetector(model_path)
     self.detectThread.start()
+  
+
+  def detector_stop(self):
+    self.detectThread.running = False
+
 
   def detector_update(self):
     # 감지 결과 얻기
     result_image = self.detector.detect()
+    # print('\033[91m'+'result_image: ' + '\033[90m' + "detector_update"+ '\033[0m')
     # 결과 이미지를 화면에 표시
     self.update_camera(result_image)
+    
 
   def classification_start(self):
-    self.classificationThread = True
-    classifier = TomatoDiseaseClassifier('SmartFarmAI/src/tomato_vgg16_model.h5')
-    classifier.run()
+    print('\033[91m'+'작물 성장 기간:\033[0m')
+    self.classificationThread.running = True
+    self.classifier = TomatoDiseaseClassifier('SmartFarmAI/src/tomato_vgg16_model.h5')
+    self.classificationThread.start()
+
+  def classification_stop(self):
+    self.classificationThread = False
+
+    # 열매 수확 가능 판단.
+    self.detectThread = MonitoringThread(0.1)
+    self.detectThread.update.connect(self.detector_update)
+    self.detector_start()
+    return
+
+  def classification_update(self):
+    result_tuple = self.classifier.run() # 0 이 상태값
+    
+    plant_status = result_tuple[0]
+    # 이 값으로 온다.
+      # 0 - 치료제
+      # 1 - 무동작
+      # 2 - 가습기
+      # 3 - 영양제
+    self.update_camera(result_tuple[1])
+    return
   
 
   # 딥러닝에서 이미지 파일을 받아올 예정.
   def update_camera(self, image):
-    # retval, image = self.video.read()
+    if image is None:
+      return
 
-    # if retval:
+
     self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     h, w, c = self.image.shape
