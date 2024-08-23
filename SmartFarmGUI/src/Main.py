@@ -19,6 +19,7 @@ import time
 from SmartFarmAI.src.final_classification import TomatoDiseaseClassifier
 from SmartFarmAI.src.final_detect import TomatoDetector
 
+
 class MonitoringThread(QThread):
   update = pyqtSignal()
 
@@ -286,6 +287,7 @@ class WindowClass(QMainWindow, from_class):
 
   def classification_update(self):
     result_tuple = self.classifier.run() # 0 이 상태값
+
     self.update_camera(result_tuple[1])
 
     plant_status = result_tuple[0]
