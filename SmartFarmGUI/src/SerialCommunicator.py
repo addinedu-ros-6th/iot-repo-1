@@ -59,7 +59,10 @@ class Receiver(QThread):
         if len(res) > 0:
 
           res = res[:-2]
+          
           cmd = res[:2].decode()
+
+          # print('\033[91m'+'res: ' + '\033[92m', res, '\033[0m')
 
           # 환경(온도, 습도, 빛) 수치 응답
           if cmd == 'GE' and res[2] == 0:

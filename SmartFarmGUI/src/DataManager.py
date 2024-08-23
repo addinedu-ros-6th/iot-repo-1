@@ -27,6 +27,25 @@ class DataManager:
     
     self.cursor = self.mydb.cursor()
 
+  def get_default_update_sql(self, table, params):
+    set_clause = f"{params[0]} = %s"
+    sql = f"""
+      UPDATE {table}
+      SET {set_clause}
+    """
+    return sql, (params[1],)
+  
+  def update_plant_data(self, params = ("*",)):
+    sql, values = self.get_default_update_sql("plant_data", params)
+
+
+    self.cursor.execute(sql, values)
+    self.mydb.commit()
+
+
+
+
+
   def get_defualt_insert_sql(self, table, param_tuple):
     columns = ', '.join(param_tuple)
     sql = f"""
@@ -114,7 +133,6 @@ class DataManager:
     return result
 
 
-
   def get_plant_info(self):
     grawing_plant_data = self.get_selected_plant_data()
     plant_type = grawing_plant_data[0][2]
@@ -127,6 +145,7 @@ class DataManager:
     result = self.cursor.fetchall()
     return result[0]
   
+
   def get_selected_plant_data(self):
     sql = self.get_defualt_select_sql("plant_data", ("*",))
     sql += " WHERE isComplete = FALSE"
@@ -142,13 +161,14 @@ class DataManager:
     result = self.cursor.fetchall()
     return result
   
-  def get_growing_plant_data(self):
-    sql = self.get_defualt_select_sql("plant_data", ("*",))
+
+  def get_growing_plant_data(self, params= ("*",)):
+    sql = self.get_defualt_select_sql("plant_data", params)
     sql += " WHERE isComplete = FALSE"
     self.cursor.execute(sql)
     result = self.cursor.fetchall()
     return result
-  
+
   def __del__(self):
     self.mydb.close()
     self.cursor.close()

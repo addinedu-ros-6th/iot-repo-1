@@ -8,7 +8,7 @@ class TomatoDiseaseClassifier:
         # 모델 로드
         self.model = load_model(model_path)
         self.class_names = ['Blight', 'Healthy', 'Mites', 'Yellow']
-        self.cap = cv2.VideoCapture(2)
+        self.cap = cv2.VideoCapture(0)
         self.start_point = None
         self.end_point = None
         self.drawing = False
@@ -16,7 +16,7 @@ class TomatoDiseaseClassifier:
         # 마우스 콜백 설정
         cv2.namedWindow('Webcam')
         cv2.setMouseCallback('Webcam', self.mouse_callback)
-        cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_SILENT)
+        # cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_SILENT)
 
     def mouse_callback(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
