@@ -38,7 +38,18 @@ class DataManager:
   def update_plant_data(self, params = ("*",)):
     sql, values = self.get_default_update_sql("plant_data", params)
     self.cursor.execute(sql, values)
+    print("*********************" + sql + "," + str(values[0]))
     self.mydb.commit()
+  
+  def update_plant_complete(self, plant_data_id):
+    sql = """
+    UPDATE plant_data
+    SET isComplete = 1
+    WHERE plant_id = %s
+    """
+    self.cursor.execute(sql, (plant_data_id,))
+    self.mydb.commit()
+
 
 
   def get_defualt_insert_sql(self, table, param_tuple):

@@ -68,11 +68,13 @@ class WindowClass(QMainWindow, from_class):
     self.btn_alarm.clicked.connect(self.onClick_open_alarm)
     self.btn_log.clicked.connect(self.onClick_open_log)
     self.btn_snapshot.clicked.connect(self.onClick_open_snapshot)
+    self.btn_harvest.clicked.connect(self.onClick_harvest)
 
     self.plant_age = 0
     self.plant_id = 0
     self.plant_need_day = 0
     self.environment_parameters = {}
+    self.plant_condition = [0, 0, 0]
 
     # 포트와 통신을 위한 Thread 객체 생성
     self.connector = Connector()
@@ -83,6 +85,7 @@ class WindowClass(QMainWindow, from_class):
     self.receiver.request_log.connect(self.insert_db_log_data)
 
     self.login()
+
 
   def open_select_ui(self):
     plant_types = self.db.get_plant_types()
@@ -230,7 +233,12 @@ class WindowClass(QMainWindow, from_class):
 
   def age_update(self): 
    
-    start_day = self.db.get_growing_plant_data(("start_date",))[0][0] # 시연을 위한 코드
+    start_day = self.db.get_growing_plant_data(("start_date",)) # 시연을 위한 코드
+    print(start_day)
+    if len(start_day) == 0:
+      return
+
+    start_day = start_day[0][0]
     start_day = start_day - timedelta(days=1)
     start_day_str = start_day.strftime('%Y-%m-%d %H:%M:%S')
     self.db.update_plant_data(("start_date",start_day_str))
@@ -239,14 +247,26 @@ class WindowClass(QMainWindow, from_class):
     print("age_update: ",'\033[91m'+'현재 나이:' +'\033[90m', str(self.plant_age) +'\033[0m')
 
     self.label_day.setText(str(self.plant_age))
-    if self.plant_need_day <= self.plant_age:
-      self.btn_harvest.hide()
+
+
+    if self.plant_need_day <= self.plant_age and self.classificationThread is not None and self.classificationThread.isRunning():
+      print('\033[91m'+'plant_age: ' + '\033[0m', "old Age")
+      
+      self.btn_harvest.show()
       self.classification_stop()
+      # 열매 수확 가능 판단.
+      self.detectThread = MonitoringThread(0.1)
+      self.detectThread.update.connect(self.detector_update)
+      self.detector_start()
 
 
   def onClick_harvest(self):
+    self.age_stop()
+    self.detector_stop()
     print('\033[91m'+'onClick_harvest: ' + '\033[0m', "onClick_harvest")
+    self.btn_harvest.hide()
     self.db.update_plant_data(("isComplete", True))
+
     self.login()
 
 
@@ -277,27 +297,35 @@ class WindowClass(QMainWindow, from_class):
     self.classificationThread.start()
 
   def classification_stop(self):
-    self.classificationThread = False
-
-    # 열매 수확 가능 판단.
-    self.detectThread = MonitoringThread(0.1)
-    self.detectThread.update.connect(self.detector_update)
-    self.detector_start()
+    print('\033[91m'+"Stop classification\033[0m")
+    self.classificationThread.running = False
     return
 
+  
   def classification_update(self):
+   
     result_tuple = self.classifier.run() # 0 이 상태값
+    if result_tuple == None:
+      return
 
     self.update_camera(result_tuple[1])
 
     plant_status = result_tuple[0]
 
-    # if plant_status == 0:
-    #   self.connector.send(b'ST', 0)
-    # elif plant_status == 2:
-    #   self.connector.send(b'ST', 1)
-    # elif plant_status == 3:
-    #   self.connector.send(b'ST', 2)
+    # 시연용
+    if plant_status == 0 and self.plant_condition[0] == 0:
+      self.connector.send(b'ST', 0)
+      self.plant_condition[0] = 1
+    elif plant_status == 1:
+      self.plant_condition[0] = 0
+      self.plant_condition[1] = 0
+      self.plant_condition[2] = 0
+    elif plant_status == 2 and self.plant_condition[1] == 0:
+      self.connector.send(b'ST', 1)
+      self.plant_condition[1] = 1
+    elif plant_status == 3 and self.plant_condition[2] == 0:
+      self.connector.send(b'ST', 2)
+      self.plant_condition[2] = 1
 
     return
   
@@ -401,7 +429,8 @@ class WindowClass(QMainWindow, from_class):
       self.connector.send(b'ST', 1)
     elif status == 2: # 영양제 (노란잎)
       self.connector.send(b'ST', 2)
-  
+ 
+
   def onClick_open_snapshot(self):
     if hasattr(self, 'image'):
         window_2 = SnapshotWindowClass(self.image, self.plant_id)
