@@ -37,13 +37,8 @@ class DataManager:
   
   def update_plant_data(self, params = ("*",)):
     sql, values = self.get_default_update_sql("plant_data", params)
-
-
     self.cursor.execute(sql, values)
     self.mydb.commit()
-
-
-
 
 
   def get_defualt_insert_sql(self, table, param_tuple):
@@ -78,6 +73,8 @@ class DataManager:
     datas = ', '.join(log_data_tuple)
     sql = self.get_defualt_insert_sql("log_data", ("plant_id", "plant_age", "message_id", "date", "path"))
     sql += f" ({datas})"
+
+    print(sql)
 
     self.cursor.execute(sql)
     self.mydb.commit()

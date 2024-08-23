@@ -50,7 +50,7 @@ class WindowClass(QMainWindow, from_class):
     self.classificationThread.update.connect(self.classification_update)
     self.classification_start()
 
-    self.ageThread = MonitoringThread(2)
+    self.ageThread = MonitoringThread(5)
     self.ageThread.update.connect(self.age_update)
     self.age_start()
 
@@ -167,7 +167,6 @@ class WindowClass(QMainWindow, from_class):
   def insert_db_log_data(self, event_type, event_value):
 
     status = ""
-
     if event_type == "SE":
       if event_value == 0 and self.on_icon_aircon.isVisible() == False:
         status = "hot"
@@ -240,7 +239,14 @@ class WindowClass(QMainWindow, from_class):
 
     self.label_day.setText(str(self.plant_age))
     if self.plant_need_day <= self.plant_age:
+      self.btn_harvest.hide()
       self.classification_stop()
+
+
+  def onClick_harvest(self):
+    print('\033[91m'+'onClick_harvest: ' + '\033[0m', "onClick_harvest")
+    self.db.update_plant_data(("isComplete", True))
+    self.login()
 
 
   def detector_start(self):
@@ -280,14 +286,17 @@ class WindowClass(QMainWindow, from_class):
 
   def classification_update(self):
     result_tuple = self.classifier.run() # 0 이 상태값
-    
-    plant_status = result_tuple[0]
-    # 이 값으로 온다.
-      # 0 - 치료제
-      # 1 - 무동작
-      # 2 - 가습기
-      # 3 - 영양제
     self.update_camera(result_tuple[1])
+
+    plant_status = result_tuple[0]
+
+    # if plant_status == 0:
+    #   self.connector.send(b'ST', 0)
+    # elif plant_status == 2:
+    #   self.connector.send(b'ST', 1)
+    # elif plant_status == 3:
+    #   self.connector.send(b'ST', 2)
+
     return
   
 
@@ -411,6 +420,7 @@ class WindowClass(QMainWindow, from_class):
     audio_file = "SmartFarmGUI/resource/loveVoice.mp3"
     sound = pygame.mixer.Sound(audio_file)
     sound.play()
+    self.insert_db_log_data("SA", 0)
     return
 
   # 연달아 실행할때 문제있음.

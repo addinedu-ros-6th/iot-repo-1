@@ -1,6 +1,6 @@
 # vscode configuration file
 .vscode/
-
+record/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

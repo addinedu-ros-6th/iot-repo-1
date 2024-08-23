@@ -330,14 +330,14 @@ border: none;</string>
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>550</y>
+     <y>510</y>
      <width>1231</width>
-     <height>61</height>
+     <height>101</height>
     </rect>
    </property>
    <property name="font">
     <font>
-     <pointsize>16</pointsize>
+     <pointsize>24</pointsize>
     </font>
    </property>
    <property name="styleSheet">
@@ -400,8 +400,8 @@ background-color: rgb(30, 30, 30);</string>
   <widget class="QToolButton" name="btn_harvest">
    <property name="geometry">
     <rect>
-     <x>560</x>
-     <y>320</y>
+     <x>1080</x>
+     <y>520</y>
      <width>171</width>
      <height>151</height>
     </rect>
