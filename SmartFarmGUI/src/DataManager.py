@@ -27,15 +27,21 @@ class DataManager :
     self.db.commit()
 
 
-  def select_data(self, table, columns= ("*",), where = None):
+  def select_data(self, table, columns= ("*",), where = None, join = None, order = None, limit=None):
     columns_str = ', '.join(columns)
 
     sql = f"""
       SELECT {columns_str}
       FROM {table}
     """
+    if join:
+      sql += f" {join}" #inner join, left joint 등 조인에는 종류가 다양하다.
     if where:
       sql += f" WHERE {where}"
+    if order:
+      sql += f" ORDER BY {order}"
+    if limit:
+      sql += f" LIMIT {limit}"
 
     print("select_data: ", sql)
     self.cursor.execute(sql)
