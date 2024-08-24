@@ -44,6 +44,7 @@ class WindowClass(QMainWindow, from_class):
     self.btn_harvest.clicked.connect(self.onClick_harvest)
     self.btn_massage.clicked.connect(self.onClick_play_massage)
     self.btn_loveVoice.clicked.connect(self.onClick_play_love_voice)
+    self.btn_snapshot.clicked.connect(self.onClick_open_snapshot)
 
     self.login()
 
@@ -147,13 +148,19 @@ class WindowClass(QMainWindow, from_class):
       self.system_message_timer.stop() 
     return
 
-  def capture(self):
+  def capture(self, image=None):
     path = os.path.join("SmartFarmGUI", "record", str(self.plantData.id))
     os.makedirs(path, exist_ok=True)
     file_count = len(glob.glob(os.path.join(path, '*')))
-    filename = path+str(file_count) + '.png'
-    cv2.imwrite(filename, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
-    return path
+    filename = os.path.join(path, f"{file_count}.png")
+    
+    if image is None:
+        image = self.image
+    
+    cv2.imwrite(filename, cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+    
+    return filename if image is None else path
+
   
 
   def onClick_harvest(self):
@@ -203,6 +210,19 @@ class WindowClass(QMainWindow, from_class):
     sound = pygame.mixer.Sound(audio_file)
     sound.play()
     self.insert_log_data("SA", 0)
+    return
+  
+  def onClick_open_snapshot(self):
+    snapshot_window = SnapshotWindowClass(self.image)
+    snapshot_window.request_image_save.connect(self.capture)
+    snapshot_window.request_insert_snapshot_data(self.insert_snapshot_data)
+    snapshot_window.exec_()
+  
+  def insert_snapshot_data(self, now, message, filename):
+    table = "snapshot_data"
+    columns = ("plant_id", "date", "custom_message", "path")
+    params = (self.plantData.id, now, message, filename)
+    self.db.insert_data(table, columns, params)
     return
   
   def send_data(self, cmd, data = 0):

@@ -1,6 +1,6 @@
 import glob
 import sys
-
+import numpy as np
 import cv2
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -128,5 +128,21 @@ class AlarmWindowClass(QDialog, from_class_alarm):
       self.tableWidget.setItem(row, 3, QTableWidgetItem(message))
       
 from_class_snapshot = uic.loadUiType("SmartFarmGUI/ui/snapshot.ui")[0]
-class SnapshotWindowClass(QDialog, from_class_snapshot):
-  pass
+
+
+class SnapshotWindowClass(QDialog, QObject, from_class_snapshot):
+  request_image_save = pyqtSignal(np.ndarray)
+  request_insert_snapshot_data = pyqtSignal(str, str, str)
+  def __init__(self, image):
+    super.__init__()
+    self.show()
+    self.image = image
+    self.SAVEbutton.clicked.connect(self.capture)
+
+  def capture(self):
+    filename = self.request_image_save.emit(self.image)
+    to_plant_message = self.message2plant.text()
+    now =  datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    self.request_insert_snapshot_data.emit(now, to_plant_message, filename)
+    self.close()
+  
