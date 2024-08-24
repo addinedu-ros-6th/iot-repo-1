@@ -24,14 +24,14 @@ class SmartFarmManager(QObject):
     self.sc_sender.stop()
     self.receiver.stop()
 
+  def send_cmd(self, cmd, data=0):
+    cmd = f"{cmd}".encode('utf-8')
+    self.connector.send(cmd)
+
   def request_get_env_data(self):
-    self.connector.send("GE")
+    self.send_cmd("GE")
     return
   
-  def request_play_massage(self):
-    self.connector.send(b"SA", 1)
-    return
-
   # 아두이노에서 온도, 습도 등의 수치를 받으면 UI 텍스트를 변경한다.
   def update_env_cur_value(self, envValues):
     self.env_data_updated.emit(envValues) 

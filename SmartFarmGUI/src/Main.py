@@ -8,6 +8,7 @@ import sys
 from DataManager import *
 from QtDialogPopup import *
 import SmartFarmEnvManager as sfm
+import SmartFarmMonitor as sm
 import pygame
 
 PlantData = namedtuple('PlantData', ['id', 'planted_date', 'plant_type', 'isComplete',
@@ -24,7 +25,7 @@ class WindowClass(QMainWindow, from_class):
 
     self.system_message_timer = QTimer(self) 
     self.age_timer = QTimer(self)
-    
+    self.pixmap = QPixmap()
 
     self.plantData = None
     self.age =0
@@ -62,6 +63,10 @@ class WindowClass(QMainWindow, from_class):
       self.farm_manager.env_io_state_updated.connect(self.updated_io_state)
       self.farm_manager.env_io_state_request.connect(self.request_env_io_state)
 
+      self.farm_monitor = sm.SmartFarmMonitor()
+      self.farm_monitor.request_care.connect(self.send_data)
+      self.farm_monitor.update_camera.connect(self.update_camera)
+
       self.age_timer.timeout.connect(self.add_age)
       self.age_timer.start(1000)
 
@@ -92,6 +97,20 @@ class WindowClass(QMainWindow, from_class):
     if isChanged:
       self.insert_log_data(command, io_index)
       self.insert_alarm_data()
+
+
+  def update_camera(self, image):
+    if image is None:
+      return
+    
+    self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    h, w, c = self.image.shape
+    qimage = QImage(self.image.data, w, h, w*c, QImage.Format_RGB888)
+
+    self.pixmap = self.pixmap.fromImage(qimage)
+    self.pixmap = self.pixmap.scaled(self.label_view.width(), self.label_view.height())
+    self.label_view.setPixmap(self.pixmap)
 
   def insert_alarm_data(self):
     log_id = self.db.select_last_id("log_data")
@@ -155,7 +174,6 @@ class WindowClass(QMainWindow, from_class):
     logWindow.show()
     logWindow.exec_()
 
-
   def onClick_show_alarm(self):
     log_datas = self.db.select_data(
       table="log_data",
@@ -176,7 +194,7 @@ class WindowClass(QMainWindow, from_class):
     audio_file = "SmartFarmGUI/resource/massage.mp3"
     pygame.mixer.music.load(audio_file)
     pygame.mixer.music.play()
-    self.farm_manager.request_play_massage()
+    self.farm_manager.send_cmd("SA", 1)
     return   
   
   def onClick_play_love_voice(self):
@@ -185,6 +203,10 @@ class WindowClass(QMainWindow, from_class):
     sound = pygame.mixer.Sound(audio_file)
     sound.play()
     self.insert_log_data("SA", 0)
+    return
+  
+  def send_data(self, cmd, data = 0):
+    self.farm_manager.send_cmd(cmd, data)
     return
 
     
