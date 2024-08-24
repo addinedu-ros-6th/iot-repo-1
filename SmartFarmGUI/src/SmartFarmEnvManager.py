@@ -26,7 +26,7 @@ class SmartFarmManager(QObject):
 
   def send_cmd(self, cmd, data=0):
     cmd = f"{cmd}".encode('utf-8')
-    self.connector.send(cmd)
+    self.connector.send(cmd, data)
 
   def request_get_env_data(self):
     self.send_cmd("GE")
