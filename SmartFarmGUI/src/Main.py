@@ -133,7 +133,18 @@ class WindowClass(QMainWindow, from_class):
     self.age += 1 # 시연을 위한 코드
     if self.age >= self.plantData.need_day:
       self.btn_harvest.show()
+      
+    self.update_monitoring_thread()
 
+  def update_monitoring_thread(self):
+    if self.age > 50:
+        if self.farm_monitor.classification_thread is None or not self.farm_monitor.classification_thread.isRunning():
+            self.farm_monitor.stop_detector()
+            self.farm_monitor.start_classification()
+    else:
+        if self.farm_monitor.detector_thread is None or not self.farm_monitor.detector_thread.isRunning():
+            self.farm_monitor.stop_classification()
+            self.farm_monitor.start_detector()
 
   def set_system_message(self, message):
     self.label_system_message.setText(message)

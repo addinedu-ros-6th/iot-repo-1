@@ -28,7 +28,12 @@ class SmartFarmMonitor(QObject):
   update_camera = pyqtSignal(np.ndarray)
   def __init__(self):
     self.classifier = TomatoDiseaseClassifier('SmartFarmAI/src/tomato_vgg16_model.h5')
+    
+    self.classificationThread = None
+    self.detectThread = None
+
     self.plant_condition = [0, 0, 0]  # 시연용
+
 
   def classification_start(self):
     self.classificationThread = MonitoringThread(0.1)
