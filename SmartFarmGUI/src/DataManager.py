@@ -14,6 +14,33 @@ class DataManager :
     
     self.cursor = self.db.cursor()
 
+  def delete_data(self, table, where = None, params = None):
+    sql = f"DELETE FROM {table}"
+
+    if where:
+        sql += f" WHERE {where}"
+
+    print("delete_data: ", sql)
+    
+    if params:
+        self.cursor.execute(sql, params)
+    else:
+        self.cursor.execute(sql)
+    
+    self.db.commit()
+
+  def update_data(self, table, columns, params, where = None):
+    set_clauses = [f"{column} = %s" for column in columns]
+    set_clause_str = ', '.join(set_clauses)
+
+    sql = f"UPDATE {table} SET {set_clause_str}"
+
+    if where:
+      sql += f" WHERE {where}"
+
+    print("update_data: ", sql)
+    self.cursor.execute(sql, params)
+    self.db.commit()
 
   def insert_data(self, table, columns, params):
     columns_str = ', '.join(columns)

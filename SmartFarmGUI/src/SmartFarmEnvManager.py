@@ -27,6 +27,10 @@ class SmartFarmManager(QObject):
   def request_get_env_data(self):
     self.connector.send("GE")
     return
+  
+  def request_play_massage(self):
+    self.connector.send(b"SA", 1)
+    return
 
   # 아두이노에서 온도, 습도 등의 수치를 받으면 UI 텍스트를 변경한다.
   def update_env_cur_value(self, envValues):
@@ -85,7 +89,6 @@ class SmartFarmManager(QObject):
     self.env_io_state_updated.emit(io_index, command, io_index)
     return
   
-
   def update_env_io_icon(self, index, command, io_icon):
     isOn = command == "SE"
 
@@ -93,6 +96,7 @@ class SmartFarmManager(QObject):
     io_icon.setVisible(isOn)
 
     return is_io_icon != isOn
+
 
     
       
