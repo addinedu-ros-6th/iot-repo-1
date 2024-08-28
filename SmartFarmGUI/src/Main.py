@@ -31,15 +31,16 @@ class WindowClass(QMainWindow, from_class):
     self.io_icons = [self.on_icon_aircon, self.on_icon_heater, self.on_icon_water, self.on_icon_light]
 
     self.system_message_timer = QTimer(self) 
+    self.age_timer = QTimer(self)
     self.blink_count = 0
     self.image = None
-
+    self.age = 0
     self.pixmap = QPixmap()
 
     self.farm_monitor = sf.SmartFarmMonitor(self)
     self.farm_monitor.request_care.connect(self.send_data)
     self.farm_monitor.update_camera.connect(self.update_camera)
-
+    
     self.db = DataManager()
     self.smart_farm_manager = SmartFarmManager()
     self.smart_farm_manager.env_value_updated.connect(self.update_env_labels)
@@ -74,12 +75,37 @@ class WindowClass(QMainWindow, from_class):
       self.plantData = PlantData(*(self.plantData))
       self.smart_farm_manager.start_request_env_data()
       self.smart_farm_manager.start_receive_aduino_data()
+      self.age_timer.timeout.connect(self.add_age) # 시연을 위한 코드
+      self.age_timer.start(1000)
+
 
     else:
       self.smart_farm_manager.stop_request_env_data()
       self.smart_farm_manager.stop_receive_aduino_data()
+      self.farm_monitor.classification_stop()
+      self.farm_monitor.detector_stop()
       self.open_select_window()
+
+  def add_age(self):
+    # self.age = (datetime.now() - self.plantData.planted_date).days
+    self.age += 1 # 시연을 위한 코드
+    if self.age >= self.plantData.need_day:
+      self.btn_harvest.show()
       
+    self.update_monitoring_thread()
+      
+  def update_monitoring_thread(self):
+    if self.age > 50:
+        if self.farm_monitor.classificationThread is None or not self.farm_monitor.classificationThread.isRunning():
+            self.farm_monitor.detector_stop()
+            self.farm_monitor.classification_start()
+
+    else:
+        if self.farm_monitor.detectThread is None or not self.farm_monitor.detectThread.isRunning():
+            self.farm_monitor.classification_stop()
+            self.farm_monitor.detector_start()
+
+
   # select
   def open_select_window(self):
     plant_types = self.db.select_data("plant_info", ("plant_type",))

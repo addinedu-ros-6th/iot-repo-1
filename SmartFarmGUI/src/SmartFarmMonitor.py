@@ -35,14 +35,13 @@ class SmartFarmMonitor(QObject):
     super().__init__(parent)
     self.classifier = TomatoDiseaseClassifier('SmartFarmAI/src/tomato_vgg16_model.h5')
     
-    self.classificationThread = None
-    self.detectThread = None
+    self.classificationThread = MonitoringThread(0.1)
+    self.detectThread = MonitoringThread(0.1)
 
     self.plant_condition = [0, 0, 0]  # 시연용
 
 
   def classification_start(self):
-    self.classificationThread = MonitoringThread(0.1)
     self.classificationThread.update.connect(self.classification_update)
     self.classificationThread.running = True
 
@@ -77,7 +76,6 @@ class SmartFarmMonitor(QObject):
     model_path = 'SmartFarmAI/src/trained_model.pt'  # YOLO 모델 파일 경로
     self.detector = TomatoDetector(model_path)
     
-    self.detectThread = MonitoringThread(0.1)
     self.detectThread.update.connect(self.detector_update)
     self.detectThread.running = True
     return
