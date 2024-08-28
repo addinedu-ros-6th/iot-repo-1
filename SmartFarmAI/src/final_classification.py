@@ -32,12 +32,12 @@ class TomatoDiseaseClassifier:
     def run(self):
         while True:
             ret, frame = self.cap.read()
-<<<<<<< HEAD
 
-            print('\033[91m'+'read: ' + '\033[92m', ret)
-=======
+
+
+
             # print('\033[91m'+'read: ' + '\033[92m', ret)
->>>>>>> 5358c6131841370994ea7fd82448a54a14242ed8
+
 
            
 
@@ -96,7 +96,7 @@ class TomatoDiseaseClassifier:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
             
-            
+
         
         self.cap.release()
         print('\033[91m'+'self.cap.release: ' + '\033[92m', self.cap.release())

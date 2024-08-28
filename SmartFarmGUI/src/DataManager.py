@@ -5,9 +5,16 @@ class DataManager :
 
   def __init__(self):
 
+    # self.db = mysql.connector.connect(
+    #         host = "localhost",
+    #         user = "root",
+    #         password = "1234",
+    #         database = "iot"
+        # )
+
     self.db = mysql.connector.connect(
-            host = "localhost",
-            user = "root",
+            host = "192.168.0.38",
+            user = "remote",
             password = "1234",
             database = "iot"
         )
