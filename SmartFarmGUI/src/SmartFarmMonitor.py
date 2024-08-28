@@ -15,8 +15,9 @@ class MonitoringThread(QThread):
   def __init__(self, sec=0, parent=None):
     super().__init__()
     self.main = parent
-    self.running = True
+    self.running = False
     self.sec = sec
+    
 
   def run(self):
     while self.running == True:
@@ -25,6 +26,8 @@ class MonitoringThread(QThread):
 
   def stop(self):
     self.running = False
+    self.quit()  # Tell the event loop to exit
+    self.wait() 
     return
 
 
@@ -34,62 +37,70 @@ class SmartFarmMonitor(QObject):
   def __init__(self, parent):
     super().__init__(parent)
     self.classifier = TomatoDiseaseClassifier('SmartFarmAI/src/tomato_vgg16_model.h5')
-    
+    self.detector = TomatoDetector('SmartFarmAI/src/trained_model.pt')
+
     self.classificationThread = MonitoringThread(0.1)
+    self.classificationThread.update.connect(self.classification_update)
     self.detectThread = MonitoringThread(0.1)
+    self.detectThread.update.connect(self.detector_update)
 
     self.plant_condition = [0, 0, 0]  # 시연용
 
 
   def classification_start(self):
-    self.classificationThread.update.connect(self.classification_update)
+    print('\033[91m'+'classification_start: ' + '\033[92m', "classification_start" + '\033[0m')
     self.classificationThread.running = True
+    self.classificationThread.start()
 
   def classification_update(self):
+    # print('\033[91m'+'classification_update: ' + '\033[92m', "classification_update" + '\033[0m')
+
     result_tuple = self.classifier.run()
     if result_tuple == None:
       return
 
     self.update_camera.emit(result_tuple[1])
 
-    # plant_status = result_tuple[0]
+    plant_status = result_tuple[0]
 
-    # # 시연용
-    # if plant_status == 0 and self.plant_condition[0] == 0:
-    #   self.request_care.emit('ST', 0)
-    #   self.plant_condition[0] = 1
-    # elif plant_status == 2 and self.plant_condition[1] == 0:
-    #   self.request_care.emit('ST', 1)
-    #   self.plant_condition[1] = 1
-    # elif plant_status == 3 and self.plant_condition[2] == 0:
-    #   self.request_care.emit('ST', 2)
-    #   self.plant_condition[2] = 1
+    # 시연용
+    if plant_status == 0 and self.plant_condition[0] == 0:
+      self.request_care.emit('ST', 0)
+      self.plant_condition[0] = 1
+    elif plant_status == 2 and self.plant_condition[1] == 0:
+      self.request_care.emit('ST', 1)
+      self.plant_condition[1] = 1
+    elif plant_status == 3 and self.plant_condition[2] == 0:
+      self.request_care.emit('ST', 2)
+      self.plant_condition[2] = 1
     return
   
   def classification_stop(self):
     print('\033[91m'+"Stop classification\033[0m")
-    self.classificationThread.running = False
+    self.classificationThread.stop()
     return
 
 
   def detector_start(self):
-    model_path = 'SmartFarmAI/src/trained_model.pt'  # YOLO 모델 파일 경로
-    self.detector = TomatoDetector(model_path)
-    
-    self.detectThread.update.connect(self.detector_update)
+    print('\033[91m'+'detector_start: ' + '\033[92m', "detector_start" +'\033[0m')
     self.detectThread.running = True
+    self.detectThread.start()
     return
 
   def detector_update(self):
+    print('\033[91m'+'detector_update: ' + '\033[92m', "detector_update" +'\033[0m')
+
     # 감지 결과 얻기
     result_image = self.detector.detect()
     # print('\033[91m'+'result_image: ' + '\033[90m' + "detector_update"+ '\033[0m')
     # 결과 이미지를 화면에 표시
     self.update_camera.emit(result_image)
+
     return
 
   def detector_stop(self):
-    self.detectThread.running = False
+    print('\033[91m'+'detector_stop: ' + '\033[92m', "detector_stop" +'\033[0m')
+    self.detectThread.stop()
     return
 
 

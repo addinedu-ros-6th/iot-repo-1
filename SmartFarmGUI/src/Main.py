@@ -95,15 +95,18 @@ class WindowClass(QMainWindow, from_class):
     self.update_monitoring_thread()
       
   def update_monitoring_thread(self):
-    if self.age > 50:
-        if self.farm_monitor.classificationThread is None or not self.farm_monitor.classificationThread.isRunning():
-            self.farm_monitor.detector_stop()
-            self.farm_monitor.classification_start()
+    if self.age < 50:
+
+      # classificationThread 시작
+      if self.farm_monitor.classificationThread.running == False:
+        self.farm_monitor.detector_stop()
+        self.farm_monitor.classification_start()
 
     else:
-        if self.farm_monitor.detectThread is None or not self.farm_monitor.detectThread.isRunning():
-            self.farm_monitor.classification_stop()
-            self.farm_monitor.detector_start()
+      # detector 시작
+      if self.farm_monitor.detectThread.running == False:
+        self.farm_monitor.classification_stop()
+        self.farm_monitor.detector_start()
 
 
   # select
@@ -155,11 +158,9 @@ class WindowClass(QMainWindow, from_class):
     return
 
   def update_camera(self, image):
-    print(image)
     if image is None:
       return
     
-
     self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     h, w, c = self.image.shape
@@ -211,7 +212,6 @@ class WindowClass(QMainWindow, from_class):
       self.system_message_timer.stop() 
     return
 
-
   def onClick_open_logWindow(self):
     log_datas = self.db.select_data(
       table="log_data",
@@ -223,6 +223,7 @@ class WindowClass(QMainWindow, from_class):
     LogWindowClass(log_datas)
 
   def capture(self, image=None):
+    print('\033[91m'+'capture: ' + '\033[92m', "capture")
     if image is None and self.image is None:
       return 
     
@@ -235,7 +236,7 @@ class WindowClass(QMainWindow, from_class):
         image = self.image
     
     cv2.imwrite(filename, cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-  
+
     return filename if image is None else path
 
   

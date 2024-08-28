@@ -32,7 +32,7 @@ class TomatoDiseaseClassifier:
     def run(self):
         while True:
             ret, frame = self.cap.read()
-            print('\033[91m'+'read: ' + '\033[92m', ret)
+            # print('\033[91m'+'read: ' + '\033[92m', ret)
 
            
             if not ret:
