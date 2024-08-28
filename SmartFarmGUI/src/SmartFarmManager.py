@@ -3,14 +3,16 @@ from PyQt5.QtGui import *
 from PyQt5 import uic
 from PyQt5.QtCore import *
 import sys
-from typing import Type
+from typing import List, Type
 
-from Pattern.CommandPattern import SetEnvironmentCommand, EndEnvironmentCommand,Command
+from EnvControl import *
 import SerialCommunicator as sc
+
 
 class SmartFarmManager(QObject):
 
-  env_data_updated = pyqtSignal(tuple)
+  env_value_updated = pyqtSignal(tuple)
+  env_io_updated = pyqtSignal(str, int)
 
   def __init__(self):
     super().__init__()
@@ -18,11 +20,23 @@ class SmartFarmManager(QObject):
     self.sc_sender = sc.Sender(2, self.request_get_env_data)
     self.sc_receiver = sc.Receiver(self.connector.conn)
     self.sc_receiver.received_env_value.connect(self.update_env_cur_value)
-    
+    self.sc_receiver.received_env_io_result.connect(self.update_env_io)
+
+    self.envControls: List[EnvControl] = [
+      EnvControl(raise_index=0, lower_index=1, connector= self.connector),  # Temperature
+      EnvControl(raise_index=2, lower_index=2, connector= self.connector),  # Humidity
+      EnvControl(raise_index=3, lower_index=3, connector= self.connector)   # Light
+    ]
+
 
   def __del__(self):
     self.sc_sender.running = False
     self.sc_receiver.running = False
+
+
+  def send_cmd(self, cmd, data=0):
+    cmd = f"{cmd}".encode('utf-8')
+    self.connector.send(cmd, data)
 
 
   def start_request_env_data(self):
@@ -43,47 +57,47 @@ class SmartFarmManager(QObject):
     self.sc_receiver.running = False
     return
 
-
+  # 현재 환경 수치를 달라고 요청한다.
   def request_get_env_data(self):
     self.connector.send(b'GE')
     print("request_get_env_data")
     return
   
+  # 환경 제어 io의 on/off 상태가 매개변수로 전달된다.
+  def update_env_io(self, io_index, cmd):
+    self.env_io_updated.emit(cmd, io_index)
+    return
+  
+
+  # 환경 수치 변화에 따른 라벨 텍스트 변경. (텍스트 내용, 색깔)
   def update_env_cur_value(self, env_values):
     print('\033[91m'+'env_values: ' + '\033[92m', str(env_values) +'\033[0m')
-    self.env_data_updated.emit(env_values)
+    self.env_value_updated.emit(env_values)
     return
   
   def update_env_label_text_color(self, env_data):
     results = []
 
-    for current_value, min_value, max_value, io_indices in env_data:
+    for index, (current_value, min_value, max_value) in enumerate(env_data):
 
       if current_value <= min_value:
         color = 'blue'
+        self.envControls[index].raise_control()
+        
       elif current_value >= max_value:
         color = 'red'
+        self.envControls[index].lower_control()
+
       else:
         color = 'black'
-
-      for io_index in io_indices:
-        self.update_environment_control(color, io_index)
+        self.envControls[index].maintain_control( current_value)
+      
       results.append((current_value, color))
 
     return results
   
-  def update_environment_control(self, color, io_index):
-    print(color, io_index)
-    device_actions = {
-      0: {'red': SetEnvironmentCommand, 'blue': EndEnvironmentCommand, 'black': EndEnvironmentCommand},
-      1: {'red': EndEnvironmentCommand, 'blue': SetEnvironmentCommand, 'black': EndEnvironmentCommand},
-      2: {'blue': SetEnvironmentCommand, 'black': EndEnvironmentCommand, 'red': EndEnvironmentCommand},
-      3: {'red': SetEnvironmentCommand, 'black': EndEnvironmentCommand, 'blue': EndEnvironmentCommand}
-    }
+    
 
-    command_class:Type[Command] = device_actions[io_index][color]
-    command = command_class(self.connector, io_index)
-    command.execute()
 
   
 
