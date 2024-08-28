@@ -95,7 +95,6 @@ class SmartFarmMonitor(QObject):
     # print('\033[91m'+'result_image: ' + '\033[90m' + "detector_update"+ '\033[0m')
     # 결과 이미지를 화면에 표시
     self.update_camera.emit(result_image)
-
     return
 
   def detector_stop(self):

@@ -21,6 +21,7 @@ class SmartFarmManager(QObject):
     self.sc_receiver = sc.Receiver(self.connector.conn)
     self.sc_receiver.received_env_value.connect(self.update_env_cur_value)
     self.sc_receiver.received_env_io_result.connect(self.update_env_io)
+    
 
     self.envControls: List[EnvControl] = [
       EnvControl(raise_index=0, lower_index=1, connector= self.connector),  # Temperature
