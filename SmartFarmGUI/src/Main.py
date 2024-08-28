@@ -133,6 +133,7 @@ class WindowClass(QMainWindow, from_class):
     self.btn_info.setVisible(isGrawing == True)
     self.label_select.setVisible(isGrawing == False)
 
+
   def update_env_io_icon(self, cmd, io_index):
     isOn = (cmd == 'SE')
     isChange = (isOn != self.io_icons[io_index].isVisible())
