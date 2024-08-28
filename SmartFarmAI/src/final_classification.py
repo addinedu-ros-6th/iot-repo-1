@@ -32,8 +32,12 @@ class TomatoDiseaseClassifier:
     def run(self):
         while True:
             ret, frame = self.cap.read()
+<<<<<<< HEAD
 
             print('\033[91m'+'read: ' + '\033[92m', ret)
+=======
+            # print('\033[91m'+'read: ' + '\033[92m', ret)
+>>>>>>> 5358c6131841370994ea7fd82448a54a14242ed8
 
            
 
