@@ -8,7 +8,7 @@ class TomatoDiseaseClassifier:
         # 모델 로드
         self.model = load_model(model_path)
         self.class_names = ['Blight', 'Healthy', 'Mites', 'Yellow']
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(2)
         self.start_point = None
         self.end_point = None
         self.drawing = False
