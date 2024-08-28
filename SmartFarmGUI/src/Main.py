@@ -187,7 +187,9 @@ class WindowClass(QMainWindow, from_class):
 
   # 환경 수치 관련 라벨의 텍스트 내용과 색깔 변경.
   def update_env_labels(self, env_values):
+    
     if self.image == None:
+      print('\033[90m'+"update_env_labels 시연용" + '\033[0m')
       return # 시연용.
     
     env_data = [
