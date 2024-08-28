@@ -1,340 +1,138 @@
 import glob
-import sys
+
+import cv2
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5 import uic
 from PyQt5.QtCore import *
-import cv2, imutils
-from DataManager import DataManager
-from SerialCommunicator import Connector, Receiver, Sender 
-from QtDialogPopup import AlarmWindowClass, LogWindowClass,SelectWindowClass ,SnapshotWindowClass, SelectWindowClass
-import pygame
+import sys
 import os
-from datetime import datetime, timedelta
-import time
-# import numpy as np
-# from tensorflow.keras.models import load_model
-# from tensorflow.keras.preprocessing import image
-# from ultralytics import YOLO
-from SmartFarmAI.src.final_classification import TomatoDiseaseClassifier
-from SmartFarmAI.src.final_detect import TomatoDetector
+
+import SmartFarmMonitor as sf
+from DataManager import *
+from SmartFarmManager import SmartFarmManager
+from QDialogPopup import *
+from collections import namedtuple
 
 
-class MonitoringThread(QThread):
-  update = pyqtSignal()
+PlantData = namedtuple('PlantData', ['id', 'planted_date', 'plant_type', 'isComplete',
+                                     'need_day', 'temp_min', 'temp_max', 'humidity_min', 'humidity_max',
+                                     'airflow_min', 'airflow_max', 'light_min', 'light_max'])
 
-  def __init__(self, sec=0, parent=None):
-    super().__init__()
-    self.main = parent
-    self.running = True
-    self.sec = sec
-
-  def run(self):
-    while self.running == True:
-        self.update.emit()
-        time.sleep(self.sec)
-
-  def stop(self):
-    self.running = False
 
 from_class = uic.loadUiType("SmartFarmGUI/ui/main.ui")[0]
-
 class WindowClass(QMainWindow, from_class):
 
   def __init__(self):
     super().__init__()
-    pygame.mixer.init()
-    self.db = DataManager()
-
-    self.ageThread = MonitoringThread(5)
-    self.ageThread.update.connect(self.age_update)
-    self.age_start()
-
     self.setupUi(self)
-    self.timer = QTimer(self) 
+
+    self.env_labels = [self.label_cur_temp, self.label_cur_humidity, self.label_cur_light]
+    self.io_icons = [self.on_icon_aircon, self.on_icon_heater, self.on_icon_water, self.on_icon_light]
+
+    self.system_message_timer = QTimer(self) 
     self.blink_count = 0
+    self.image = None
 
-    self.label_system_message.hide()
-    self.btn_harvest.hide()
     self.pixmap = QPixmap()
-    
-    self.btn_massage.clicked.connect(self.onClick_play_massage)
-    self.btn_loveVoice.clicked.connect(self.onClick_play_love_voice)
-    self.btn_alarm.clicked.connect(self.onClick_open_alarm)
-    self.btn_log.clicked.connect(self.onClick_open_log)
-    self.btn_snapshot.clicked.connect(self.onClick_open_snapshot)
-    self.btn_harvest.clicked.connect(self.onClick_harvest)
 
-    self.plant_age = 0
-    self.plant_id = 0
-    self.plant_need_day = 0
-    self.environment_parameters = {}
-    self.plant_condition = [0, 0, 0]
+    self.farm_monitor = sf.SmartFarmMonitor(self)
+    self.farm_monitor.request_care.connect(self.send_data)
+    self.farm_monitor.update_camera.connect(self.update_camera)
 
-    # 포트와 통신을 위한 Thread 객체 생성
-    self.connector = Connector()
-    self.farm_sensor_polling_thread = Sender(2, self.update_get_env_data)
-    self.receiver = Receiver(self.connector.conn)
-    self.receiver.received_env_value.connect(self.set_env_cur_value)
-    self.receiver.received_env_io_result.connect(self.update_env_io_icon)
-    self.receiver.request_log.connect(self.insert_db_log_data)
-
+    self.db = DataManager()
+    self.smart_farm_manager = SmartFarmManager()
+    self.smart_farm_manager.env_value_updated.connect(self.update_env_labels)
+    self.smart_farm_manager.env_io_updated.connect(self.update_env_io_icon)
+    self.plantData = None
     self.login()
 
 
-  def open_select_ui(self):
-    plant_types = self.db.get_plant_types()
-    select_window = SelectWindowClass(plant_types)
-    select_window.exec_()
-    self.login()
-   
   def login(self):
-    growing_plant_data = self.db.get_growing_plant_data()
-    
-    if len(growing_plant_data) == 0 :
-      self.init_end_plant_dashboard()
+    plantData = self.db.select_data("plant_data pd", 
+                                             ("pd.id", 
+                                              "pd.start_date", 
+                                              "pd.plant_type",
+                                              "pd.isComplete",
+                                              "pi.need_day", 
+                                              "pi.temp_min", 
+                                              "pi.temp_max", 
+                                              "pi.humidity_min", 
+                                              "pi.humidity_max", 
+                                              "pi.airflow_min", 
+                                              "pi.airflow_max", 
+                                              "pi.light_min", 
+                                              "pi.light_max"), 
+                                             join="INNER JOIN plant_info pi ON pd.plant_type = pi.plant_type",
+                                             where="isComplete = 0")
+                                                  
+    isGrowing = len(plantData) > 0
+    self.setup_ui(isGrowing)
 
-    else: 
-      growing_plant_data = growing_plant_data[0]
-      self.plant_id = growing_plant_data[0]
-      self.plant_age = (datetime.now() - growing_plant_data[1]).days
-      self.init_start_plant_dashboard()
+    if isGrowing == True:
+      self.plantData = plantData[0]
+      self.plantData = PlantData(*(self.plantData))
+      self.smart_farm_manager.start_request_env_data()
+      self.smart_farm_manager.start_receive_aduino_data()
 
-      if self.plant_age < 50:
-        # 잎파리 테스트
-        self.classificationThread = MonitoringThread(0.1)
-        self.classificationThread.update.connect(self.classification_update)
-        self.classification_start()
-
-      else:
-        # 열매 수확 가능 판단.
-        self.detectThread = MonitoringThread(0.1)
-        self.detectThread.update.connect(self.detector_update)
-        self.detector_start()
-
-  def init_end_plant_dashboard(self):
-    self.toggle_active_ui(False)
-    self.open_select_ui()
-    
-
-  def init_start_plant_dashboard(self):
-
-    self.toggle_active_ui(True)
-    self.receiver.start()
-    self.start_get_env_data()
-    self.label_day.setText(str(self.plant_age))
-
-    # 키우는 식물의 정보를 가져온다. 
-    plant_info = self.db.get_plant_info()
-
-    self.plant_need_day = plant_info[1]
-
-    # 권장 환경 범위값 참조.
-    self.environment_parameters = {
-      "temperature": {
-          "min": plant_info[3],
-          "max": plant_info[4],
-          "current_label": self.label_cur_temp,
-          "inc_io": 1,
-          "dec_io": 0,
-      },
+    else:
+      self.smart_farm_manager.stop_request_env_data()
+      self.smart_farm_manager.stop_receive_aduino_data()
+      self.open_select_window()
       
-      "humidity": {
-          "min": plant_info[5],
-          "max": plant_info[6],
-          "current_label": self.label_cur_humidity,
-          "inc_io": 2,
-          "dec_io": None,
-      },
+  # select
+  def open_select_window(self):
+    plant_types = self.db.select_data("plant_info", ("plant_type",))
+    select_window = SelectWindow(plant_types)
+    select_window.plant_selected.connect(self.on_plant_selected)
+    select_window.exec_()
 
-      "light": {
-          "min": plant_info[9],
-          "max": plant_info[10],
-          "current_label": self.label_cur_light,
-          "inc_io": 3,
-          "dec_io": None,
-      }
-    }
+  def on_plant_selected(self, plant_type):
+    today = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    self.db.insert_data("plant_data", ("start_date", "plant_type", "isComplete"), (today, plant_type, False))
 
-    # 권장 환경 값 설정 및 UI 표시
-    recommend_temperature = int((self.environment_parameters["temperature"]["min"] + self.environment_parameters["temperature"]["max"]) / 2)
-    recommend_humidity = int((self.environment_parameters["humidity"]["min"] + self.environment_parameters["humidity"]["max"]) / 2)
-    recommend_light = int((self.environment_parameters["light"]["min"] + self.environment_parameters["light"]["max"]) / 2)
-    self.label_recom_temp.setText("/ " + str(recommend_temperature))
-    self.label_recom_humidity.setText("/ " + str(recommend_humidity))
-    self.label_recom_light.setText("/ " + str(recommend_light))
-  
-  
-  # 온도/습도/빛의 값이 변경될때마다 호출
-  def set_env_cur_value(self, data):
-    self.label_cur_temp.setText(str(data[0]))
-    self.label_cur_humidity.setText(str(data[1]))
-    self.label_cur_light.setText(str(data[2]))
-    self.update_env_text_color()
-
-  
-  # 로그 메시지를 화면에 출력한다.
-  def insert_db_log_data(self, event_type, event_value):
-
-    status = ""
-    if event_type == "SE":
-      if event_value == 0 and self.on_icon_aircon.isVisible() == False:
-        status = "hot"
-      elif event_value == 1 and self.on_icon_heater.isVisible() == False:
-        status = "cold"
-      elif event_value == 2 and self.on_icon_water.isVisible() == False:
-        status = "thirsty"
-      elif event_value == 3 and self.on_icon_light.isVisible() == False:
-        status = "dork"
-
-    elif event_type == "ST":
-      if event_value == 0 : # 치료제
-        status = "medicine"
-      elif event_value == 1:
-        status = "bug"
-      elif event_value == 2:
-        status = "yellow"
-    
-    elif event_type == "SA":
-      if event_value == 0:
-        status = "confession"
-      elif event_value == 1:
-        status = "love"
-
-
-    if status != "":
-      log_message_data =  self.db.get_log_message(status)
-      log_message_id = log_message_data[0]
-      now = datetime.now().strftime("'%Y-%m-%d %H:%M:%S'")
-      
-      self.label_system_message.setText(log_message_data[2])
-      self.blink_count = 0
-      self.timer.timeout.connect(self.display_log_message)
-      self.timer.start(1000)
-
-      path = self.capture()
-      log_data = (str(self.plant_id), str(self.plant_age), str(log_message_id), now, "'"+path+"'")
-      self.db.insert_log_data(log_data)
-      self.db.insert_alarm_data()
-
-  def display_log_message(self):
-    self.label_system_message.setVisible(self.blink_count % 2 == 0)
-    self.blink_count += 1
-    if self.blink_count >=6:
-      self.timer.stop() 
-  
-  def capture(self):
-    path = "SmartFarmGUI/record/" +  str(self.plant_id)+"/"
-    file_count = len(glob.glob(os.path.join(path, '*')))
-    filename = path+str(file_count) + '.png'
-    cv2.imwrite(filename, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
-    return path
-  
-  def age_start(self):
-    self.ageThread.running = True
-    self.ageThread.start()
-
-  def age_stop(self):
-    self.ageThread.running = False
-
-  def age_update(self): 
-   
-    start_day = self.db.get_growing_plant_data(("start_date",)) # 시연을 위한 코드
-    print(start_day)
-    if len(start_day) == 0:
-      return
-
-    start_day = start_day[0][0]
-    start_day = start_day - timedelta(days=1)
-    start_day_str = start_day.strftime('%Y-%m-%d %H:%M:%S')
-    self.db.update_plant_data(("start_date",start_day_str))
-    self.plant_age = (datetime.now() - start_day).days
-
-    print("age_update: ",'\033[91m'+'현재 나이:' +'\033[90m', str(self.plant_age) +'\033[0m')
-
-    self.label_day.setText(str(self.plant_age))
-
-
-    if self.plant_need_day <= self.plant_age:
-      print('\033[91m'+'plant_age: ' + '\033[0m', "old Age")
-      self.btn_harvest.show()
-
-
-
-
-  def onClick_harvest(self):
-    self.age_stop()
-    self.detector_stop()
-    print('\033[91m'+'onClick_harvest: ' + '\033[0m', "onClick_harvest")
-    self.btn_harvest.hide()
-    self.db.update_plant_data(("isComplete", True))
-
+    self.plant_id = self.db.select_last_id("plant_data")
+    path = "SmartFarmGUI/record/" +  str(self.plant_id)
+    os.mkdir(path)
     self.login()
 
 
-  def detector_start(self):
-    print('\033[91m'+'수확 가능 기간:\033[0m')
-    self.detectThread.running = True
-    model_path = 'SmartFarmAI/src/trained_model.pt'  # YOLO 모델 파일 경로
-    self.detector = TomatoDetector(model_path)
-    self.detectThread.start()
-  
-
-  def detector_stop(self):
-    self.detectThread.running = False
+  def setup_ui(self, isGrawing):
+    self.label_system_message.hide()
+    self.label_select.hide()
+    self.btn_harvest.hide()
+    self.btn_info.setVisible(isGrawing == True)
+    self.label_select.setVisible(isGrawing == False)
 
 
-  def detector_update(self):
-    # 감지 결과 얻기
-    result_image = self.detector.detect()
-    # print('\033[91m'+'result_image: ' + '\033[90m' + "detector_update"+ '\033[0m')
-    # 결과 이미지를 화면에 표시
-    # print("detector_updateq")
-    self.update_camera(result_image)
-    
 
-  def classification_start(self):
-    print('\033[91m'+'작물 성장 기간:\033[0m')
-    self.classificationThread.running = True
-    self.classifier = TomatoDiseaseClassifier('SmartFarmAI/src/tomato_vgg16_model.h5')
-    self.classificationThread.start()
+  def update_env_io_icon(self, cmd, io_index):
+    isOn = (cmd == 'SE')
+    isChange = (isOn != self.io_icons[io_index].isVisible())
 
-  def classification_stop(self):
-    print('\033[91m'+"Stop classification\033[0m")
-    self.classificationThread.running = False
-    return
 
-  
-  def classification_update(self):
-   
-    result_tuple = self.classifier.run() # 0 이 상태값
-    if result_tuple == None:
-      return
+    if isChange:
+      self.io_icons[io_index].setVisible(isOn)
 
-    self.update_camera(result_tuple[1])
-
-    plant_status = result_tuple[0]
-
-    # 시연용
-    if plant_status == 0 and self.plant_condition[0] == 0:
-      self.connector.send(b'ST', 0)
-      self.plant_condition[0] = 1
-    elif plant_status == 2 and self.plant_condition[1] == 0:
-      self.connector.send(b'ST', 1)
-      self.plant_condition[1] = 1
-    elif plant_status == 3 and self.plant_condition[2] == 0:
-      self.connector.send(b'ST', 2)
-      self.plant_condition[2] = 1
-
+      if cmd == 'EE':
+        if io_index == 0:
+          self.insert_log_data("hot")
+        elif io_index == 1:
+          self.insert_log_data("cold")
+        elif io_index == 2:
+          self.insert_log_data("thirsty")
+        elif io_index == 3:
+          self.insert_log_data("dork")
     return
   
+  def send_data(self, cmd, data = 0):
+    self.smart_farm_manager.send_cmd(cmd, data)
+    return
 
-  # 딥러닝에서 이미지 파일을 받아올 예정.
   def update_camera(self, image):
     if image is None:
       return
-
-
+    
     self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     h, w, c = self.image.shape
@@ -344,153 +142,79 @@ class WindowClass(QMainWindow, from_class):
     self.pixmap = self.pixmap.scaled(self.label_view.width(), self.label_view.height())
     self.label_view.setPixmap(self.pixmap)
 
+  # 환경 수치 관련 라벨의 텍스트 내용과 색깔 변경.
+  def update_env_labels(self, env_values):
+    env_data = [
+      (env_values[0], self.plantData.temp_min, self.plantData.temp_max),
+      (env_values[1], self.plantData.humidity_min, self.plantData.humidity_max),
+      (env_values[2], self.plantData.light_min, self.plantData.light_max)
+    ]
     
-  # 환경의 수치 텍스트 색상 변경
-  # 냉방/난방/물주기 ON/OFF
-  def update_env_text_color(self):
+    results = self.smart_farm_manager.update_env_label_text_color(env_data)
 
-    for param, details in self.environment_parameters.items():
-      min_value = details["min"]
-      max_value = details["max"]
-      current_label = details["current_label"]
+    for label, (value, color) in zip(self.env_labels, results):
+      label.setText(str(value))
+      label.setStyleSheet(f"color: {color};")
+    return
+  
 
-      # 환경 수치가 권장 수치 범위 내에 있는지 체크한다.
-      # 높을 경우 해당 환경의 수치를 올리는 io를 on하고 내리는 io를 on
-      # 낮을 경우 해당 환경의 수치를 내리는 io를 on하고 올리는 io를 off
-      # 권장 범위 안이라면 올리고 내리는 io 둘다 off
+  # log
+  def insert_log_data(self, message_type):
+    print(message_type)
+  
+    (message_id, message) = self.db.select_data("message_data", ("id", "message") , f"status = \"{message_type}\"")[0]
 
-      cur_value = float(current_label.text())
-      if cur_value <= min_value:
-        current_label.setStyleSheet("color: blue;")
-        self.update_env_io_control(details['inc_io'], details['dec_io'], True)
+    self.set_system_message(message)
 
-      elif cur_value <= max_value:
-        current_label.setStyleSheet("color: red;")
-        self.update_env_io_control(details['dec_io'], details['inc_io'], True)
+    today = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    path = self.capture()
+    self.db.insert_data("log_data", ("plant_id", "plant_age", "message_id", "date", "path"), (self.plantData.id, 0, message_id, today, path))
+    return
+  
+  def set_system_message(self, message):
+    self.blink_count = 0
+    self.label_system_message.setText(message)
+    self.system_message_timer.timeout.connect(self.display_system_message)
+    self.system_message_timer.start(500)
 
-      else:
-        current_label.setStyleSheet("color: black;")
-        if details['inc_io'] != None:
-          self.connector.send(b'EE', details['inc_io'])
-          self.connector.send(b'EE', details['dec_io'])
+  def display_system_message(self):
+    self.label_system_message.setVisible(self.blink_count % 2 == 0)
+    self.blink_count += 1
+    if self.blink_count >=6:
+      self.system_message_timer.stop() 
+    return
 
-  def update_env_io_control(self, inc, dec, isUp):
 
-    if isUp == True:
-      # 수치를 올리는 io를 on 하고 내리는 io를 off 한다.
-      on_io = inc
-      off_io = dec
-    elif isUp == False:
-      on_io = dec
-      off_io = inc
+  def onClick_open_logWindow(self):
+    log_datas = self.db.select_data(
+      table="log_data",
+      columns=("log_data.*", "message_data.type", "message_data.message"),
+      join="INNER JOIN message_data ON log_data.message_id = message_data.id",
+      where=f"log_data.plant_id = {self.plantData.id}"      
+    )
+
+    LogWindowClass(log_datas)
+
+  def capture(self, image=None):
+    if image is None and self.image is None:
+      return 
     
-    if inc != None:
-      self.connector.send(b'SE', on_io)
-    if dec != None:
-      self.connector.send(b'EE', off_io)
+    path = os.path.join("SmartFarmGUI", "record", str(self.plantData.id))
+    os.makedirs(path, exist_ok=True)
+    file_count = len(glob.glob(os.path.join(path, '*')))
+    filename = os.path.join(path, f"{file_count}.png")
+    
+    if image is None:
+        image = self.image
+    
+    cv2.imwrite(filename, cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+  
+    return filename if image is None else path
 
-
-  # 아두이노에서 on/off 신호를 받으면 해당 io의 아이콘을 활성/비활성화 한다.
-  def update_env_io_icon(self, control_type, isOn):
-    if control_type == 0:
-      self.on_icon_aircon.setVisible(isOn)
-    elif control_type == 1:
-      self.on_icon_heater.setVisible(isOn)
-    elif control_type == 2:
-      self.on_icon_water.setVisible(isOn)
-    elif control_type == 3:
-      self.on_icon_light.setVisible(isOn)
-
-
-  # 멀티스레드의 run을 실행한다.
-  def start_get_env_data(self):
-    self.farm_sensor_polling_thread.running = True
-    self.farm_sensor_polling_thread.start()
-    return
-
-  # 멀티스레드의 run을 정지한다.
-  def stop_get_env_data(self):
-    self.farm_sensor_polling_thread.running = False
-    return
-
-  # 1초마다 스마트팜의 환경 데이터를 요청한다.  
-  def update_get_env_data(self):
-    self.connector.send(b"GE")
-    return
-
-
-  # 치료
-  def request_plant_treatment(self, status):
-    print("request_plant_treatment")
-    if status == 0: # 치료제(감염)
-      self.connector.send(b"ST", 0)
-    elif status == 1: # 가습기 (해충)
-      self.connector.send(b'ST', 1)
-    elif status == 2: # 영양제 (노란잎)
-      self.connector.send(b'ST', 2)
- 
-
-  def onClick_open_snapshot(self):
-    if hasattr(self, 'image'):
-        window_2 = SnapshotWindowClass(self.image, self.plant_id)
-        window_2.exec_()
-
-  def onClick_open_alarm(self):
-    alarmWindow = AlarmWindowClass(self.plant_id)
-    alarmWindow.show()
-    alarmWindow.exec_()
-
-  def onClick_open_log(self):
-    logWindow = LogWindowClass(self.plant_id)
-    logWindow.show()
-    logWindow.exec_()
-
-  def onClick_play_love_voice(self):
-    # self.stop_audio()
-    audio_file = "SmartFarmGUI/resource/loveVoice.mp3"
-    sound = pygame.mixer.Sound(audio_file)
-    sound.play()
-    self.insert_db_log_data("SA", 0)
-    return
-
-  # 연달아 실행할때 문제있음.
-  def onClick_play_massage(self):
-    # self.stop_audio()
-    audio_file = "SmartFarmGUI/resource/massage.mp3"
-    pygame.mixer.music.load(audio_file)
-    pygame.mixer.music.play()
-
-    self.connector.send(b"SA", 1)
-    return
-
-
-  def toggle_active_ui(self, isGrowing):
-
-    if isGrowing == True:
-      self.label_select.hide()
-      self.btn_massage.show()
-      self.btn_loveVoice.show()
-      self.btn_snapshot.show()
-      self.label_day.show()
-      self.label_2.show()
-
-    else :
-      self.label_select.show()
-      self.btn_massage.hide()
-      self.btn_loveVoice.hide()
-      self.btn_snapshot.hide()
-      self.label_day.hide()
-      self.label_2.hide()
-
-  def stop_audio(self):
-    if pygame.mixer.music.get_busy():
-      pygame.mixer.music.stop()
-
-
+  
 
 if __name__ == "__main__":
   app = QApplication(sys.argv)
-  
   myWindows = WindowClass()
   myWindows.show()
   sys.exit(app.exec_())

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1280</width>
-    <height>927</height>
+    <width>1262</width>
+    <height>807</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -115,10 +115,10 @@ border: none;</string>
   <widget class="QPushButton" name="btn_album">
    <property name="geometry">
     <rect>
-     <x>1058</x>
-     <y>27</y>
-     <width>64</width>
-     <height>64</height>
+     <x>1060</x>
+     <y>33</y>
+     <width>51</width>
+     <height>51</height>
     </rect>
    </property>
    <property name="styleSheet">
@@ -142,10 +142,10 @@ border: none;</string>
   <widget class="QPushButton" name="btn_info">
    <property name="geometry">
     <rect>
-     <x>980</x>
-     <y>21</y>
-     <width>64</width>
-     <height>64</height>
+     <x>990</x>
+     <y>34</y>
+     <width>41</width>
+     <height>51</height>
     </rect>
    </property>
    <property name="styleSheet">
@@ -327,6 +327,9 @@ border: none;</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_system_message">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>20</x>

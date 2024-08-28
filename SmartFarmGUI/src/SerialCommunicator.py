@@ -11,6 +11,7 @@ class Connector:
     return
 
   def send(self, command, data=0):
+    print("send: ", data, command)
     req_data = struct.pack('<2sic', command, data, b'\n')
     self.conn.write(req_data)
     return
@@ -41,7 +42,7 @@ class Sender(QThread):
 
 class Receiver(QThread):
   received_env_value = pyqtSignal(tuple)
-  received_env_io_result = pyqtSignal(int, bool)
+  received_env_io_result = pyqtSignal(int, str)
   request_log = pyqtSignal(str, int)
 
   def __init__(self, conn):
@@ -59,7 +60,6 @@ class Receiver(QThread):
         if len(res) > 0:
 
           res = res[:-2]
-          
           cmd = res[:2].decode()
 
           # print('\033[91m'+'res: ' + '\033[92m', res, '\033[0m')
@@ -74,15 +74,17 @@ class Receiver(QThread):
 
           # 환경 수치 io 실행 응답 
           elif cmd == 'SE' and res[2] == 0:
+            
             value = int.from_bytes(res[3:5], 'little')
-            self.received_env_io_result.emit(value, True)
+            print('receive SE: ', value)
+            self.received_env_io_result.emit(value, cmd)
             self.request_log.emit('SE', value)
 
           # 환경 수치 io 종료 응답
           elif cmd == 'EE' and res[2] == 0:
             value = int.from_bytes(res[3:5], 'little')
-            self.received_env_io_result.emit(value, False)
-            # print("EE ", value)
+            self.received_env_io_result.emit(value, cmd)
+            print("receive EE: ", value)
 
           # 마사지 요청에 대한 응답
           elif cmd == "SA" and res[2] == 0:
