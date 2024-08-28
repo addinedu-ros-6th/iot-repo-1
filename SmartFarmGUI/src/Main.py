@@ -155,9 +155,11 @@ class WindowClass(QMainWindow, from_class):
     return
 
   def update_camera(self, image):
+    print(image)
     if image is None:
       return
     
+
     self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     h, w, c = self.image.shape
