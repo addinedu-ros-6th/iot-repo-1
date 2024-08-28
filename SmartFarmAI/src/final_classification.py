@@ -8,7 +8,7 @@ class TomatoDiseaseClassifier:
         # 모델 로드
         self.model = load_model(model_path)
         self.class_names = ['Blight', 'Healthy', 'Mites', 'Yellow']
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(2)
         self.start_point = None
         self.end_point = None
         self.drawing = False
@@ -32,7 +32,11 @@ class TomatoDiseaseClassifier:
     def run(self):
         while True:
             ret, frame = self.cap.read()
-            print("run")
+
+            print('\033[91m'+'read: ' + '\033[92m', ret)
+
+           
+
             if not ret:
                 break
 
@@ -91,7 +95,9 @@ class TomatoDiseaseClassifier:
             
         
         self.cap.release()
+        print('\033[91m'+'self.cap.release: ' + '\033[92m', self.cap.release())
         cv2.destroyAllWindows()
+
 
 # 사용 예시
 # classifier = TomatoDiseaseClassifier('path/to/your/model.h5')
