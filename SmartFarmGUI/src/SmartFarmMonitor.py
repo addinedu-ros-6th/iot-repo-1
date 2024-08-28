@@ -17,7 +17,7 @@ class MonitoringThread(QThread):
     self.main = parent
     self.running = False
     self.sec = sec
-    self.tomatoStatuCounts = [0, 0, 0]
+    
 
   def run(self):
     while self.running == True:
@@ -45,7 +45,7 @@ class SmartFarmMonitor(QObject):
     self.detectThread.update.connect(self.detector_update)
 
     self.plant_condition = [0, 0, 0]  # 시연용
-
+    self.tomatoStatuCounts = [0, 0, 0]
 
   def classification_start(self):
     print('\033[91m'+'classification_start: ' + '\033[92m', "classification_start" + '\033[0m')
