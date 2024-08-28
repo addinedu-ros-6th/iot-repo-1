@@ -71,12 +71,17 @@ class SmartFarmMonitor(QObject):
     if plant_status == 0 and self.plant_condition[0] == 0:
       self.request_care.emit('ST', 0) 
       self.plant_condition[0] = 1
+      print('\033[91m'+'plant_condition: ' + '\033[92m', plant_status)
+      
     elif plant_status == 2 and self.plant_condition[1] == 0:
       self.request_care.emit('ST', 1)
       self.plant_condition[1] = 1
+      print('\033[91m'+'plant_condition: ' + '\033[92m', plant_status)
+      
     elif plant_status == 3 and self.plant_condition[2] == 0:
       self.request_care.emit('ST', 2)
       self.plant_condition[2] = 1
+      print('\033[91m'+'plant_condition: ' + '\033[92m', plant_status)
     return
   
   def classification_stop(self):
