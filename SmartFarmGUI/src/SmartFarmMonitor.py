@@ -67,6 +67,7 @@ class SmartFarmMonitor(QObject):
     # 0 - 질병
     # 1 - 해충
     # 2 - 노란잎
+    print('\033[91m'+'plant_status: ' + '\033[92m', plant_status)
     if plant_status == 0 and self.plant_condition[0] == 0:
       self.request_care.emit('ST', 0) 
       self.plant_condition[0] = 1
