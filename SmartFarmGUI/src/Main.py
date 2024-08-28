@@ -55,6 +55,8 @@ class WindowClass(QMainWindow, from_class):
     self.login()
 
 
+
+
   def login(self):
     plantData = self.db.select_data("plant_data pd", 
                                              ("pd.id", 
@@ -185,6 +187,9 @@ class WindowClass(QMainWindow, from_class):
 
   # 환경 수치 관련 라벨의 텍스트 내용과 색깔 변경.
   def update_env_labels(self, env_values):
+    if self.image == None:
+      return # 시연용.
+    
     env_data = [
       (env_values[0], self.plantData.temp_min, self.plantData.temp_max),
       (env_values[1], self.plantData.humidity_min, self.plantData.humidity_max),
