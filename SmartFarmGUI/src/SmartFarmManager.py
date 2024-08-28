@@ -13,6 +13,7 @@ class SmartFarmManager(QObject):
 
   env_value_updated = pyqtSignal(tuple)
   env_io_updated = pyqtSignal(str, int)
+  log_insert = pyqtSignal(str)
 
   def __init__(self):
     super().__init__()
@@ -21,7 +22,7 @@ class SmartFarmManager(QObject):
     self.sc_receiver = sc.Receiver(self.connector.conn)
     self.sc_receiver.received_env_value.connect(self.update_env_cur_value)
     self.sc_receiver.received_env_io_result.connect(self.update_env_io)
-    
+    self.sc_receiver.request_log.connect(self.insert_log_data)
 
     self.envControls: List[EnvControl] = [
       EnvControl(raise_index=0, lower_index=1, connector= self.connector),  # Temperature
@@ -34,6 +35,12 @@ class SmartFarmManager(QObject):
     self.sc_sender.running = False
     self.sc_receiver.running = False
 
+  def insert_log_data(self, cmd, data):
+    if cmd =='ST':
+      msg = None
+      if data == 2:
+        self.log_insert.emit('yellow')
+        pass
 
   def send_cmd(self, cmd, data=0):
     cmd = f"{cmd}".encode('utf-8')

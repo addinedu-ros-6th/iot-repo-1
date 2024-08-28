@@ -74,11 +74,10 @@ class Receiver(QThread):
 
           # 환경 수치 io 실행 응답 
           elif cmd == 'SE' and res[2] == 0:
-            
             value = int.from_bytes(res[3:5], 'little')
             print('receive SE: ', value)
             self.received_env_io_result.emit(value, cmd)
-            self.request_log.emit('SE', value)
+
 
           # 환경 수치 io 종료 응답
           elif cmd == 'EE' and res[2] == 0:

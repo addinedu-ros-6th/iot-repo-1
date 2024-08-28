@@ -6,7 +6,7 @@ class TomatoDetector:
         # YOLO 모델 로드
         self.model = YOLO(model_path)
         # 웹캠 열기
-        self.cap = cv2.VideoCapture(2)
+        self.cap = cv2.VideoCapture(0)
 
     def detect(self):
         while True:

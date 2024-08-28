@@ -1,5 +1,7 @@
 import glob
 
+import pygame
+
 import cv2
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -26,7 +28,7 @@ class WindowClass(QMainWindow, from_class):
   def __init__(self):
     super().__init__()
     self.setupUi(self)
-
+    pygame.mixer.init()
     self.env_labels = [self.label_cur_temp, self.label_cur_humidity, self.label_cur_light]
     self.io_icons = [self.on_icon_aircon, self.on_icon_heater, self.on_icon_water, self.on_icon_light]
 
@@ -37,6 +39,9 @@ class WindowClass(QMainWindow, from_class):
     self.age = 0
     self.pixmap = QPixmap()
 
+    self.btn_massage.clicked.connect(self.onClick_play_massage)
+    self.btn_loveVoice.clicked.connect(self.onClick_play_love_voice)
+
     self.farm_monitor = sf.SmartFarmMonitor(self)
     self.farm_monitor.request_care.connect(self.send_data)
     self.farm_monitor.update_camera.connect(self.update_camera)
@@ -45,6 +50,7 @@ class WindowClass(QMainWindow, from_class):
     self.smart_farm_manager = SmartFarmManager()
     self.smart_farm_manager.env_value_updated.connect(self.update_env_labels)
     self.smart_farm_manager.env_io_updated.connect(self.update_env_io_icon)
+    self.smart_farm_manager.log_insert.connect(self.insert_log_data)
     self.plantData = None
     self.login()
 
@@ -141,7 +147,7 @@ class WindowClass(QMainWindow, from_class):
     if isChange:
       self.io_icons[io_index].setVisible(isOn)
 
-      if cmd == 'EE':
+      if cmd == 'SE':
         if io_index == 0:
           self.insert_log_data("hot")
         elif io_index == 1:
@@ -153,7 +159,15 @@ class WindowClass(QMainWindow, from_class):
     return
   
   def send_data(self, cmd, data = 0):
-    self.smart_farm_manager.send_cmd(cmd, data)
+    if data == 1: # 진드기는 초음파마사지
+      self.onClick_play_massage()
+      pass
+
+    elif data == 0: # 감염은 노래
+      self.onClick_play_love_voice()
+
+    elif data == 2: # 노란잎이면 물주기
+      self.smart_farm_manager.send_cmd(cmd, data)
     return
 
   def update_camera(self, image):
@@ -220,6 +234,22 @@ class WindowClass(QMainWindow, from_class):
     )
 
     LogWindowClass(log_datas)
+  
+  def onClick_play_love_voice(self):
+    # self.stop_audio()
+    audio_file = "SmartFarmGUI/resource/loveVoice.mp3"
+    sound = pygame.mixer.Sound(audio_file)
+    sound.play()
+    self.insert_log_data("confession")
+    return
+  
+  def onClick_play_massage(self):
+    # self.stop_audio()
+    audio_file = "SmartFarmGUI/resource/massage.mp3"
+    pygame.mixer.music.load(audio_file)
+    pygame.mixer.music.play()
+    self.smart_farm_manager.send_cmd('SA', 1)
+    return
 
   def capture(self, image=None):
     print('\033[91m'+'capture: ' + '\033[92m', "capture")
